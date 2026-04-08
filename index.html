@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎲 BetBook — Le registre officiel des paris entre potes</title>
+<meta name="description" content="BetBook - Tracker de paris entre amis en temps réel.">
+<meta name="theme-color" content="#0a0a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a12;color:#f0f0f0;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#333;border-radius:4px}
+  select option{background:#16161e;color:#f0f0f0}
+  input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
+  button,input,select,textarea{font-family:inherit}
+  #app{max-width:480px;margin:0 auto;position:relative;padding-bottom:100px}
+
+  /* Setup / Login */
+  .setup-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+  .setup-screen .app-logo{width:140px;height:140px;border-radius:32px;margin-bottom:24px;object-fit:cover}
+  .setup-screen h1{font-size:36px;font-weight:900;font-family:'Anybody',sans-serif;margin-bottom:8px;background:linear-gradient(135deg,#4DA0FF,#FFB400);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .setup-screen .subtitle{color:#666;font-size:14px;margin-bottom:32px}
+  .setup-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px;width:100%;max-width:360px}
+  .setup-box label{display:block;font-size:12px;color:#888;letter-spacing:1px;margin-bottom:8px;text-align:left}
+  .setup-box input[type="text"],.setup-box input[type="password"]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#f0f0f0;font-size:16px;outline:none;margin-bottom:16px}
+  .setup-box .info{font-size:12px;color:#555;margin-bottom:16px;line-height:1.5;background:rgba(255,180,0,.06);border:1px solid rgba(255,180,0,.15);border-radius:10px;padding:10px 12px;text-align:left}
+  .setup-box .info strong{color:#FFB400}
+  .setup-box .error{font-size:12px;color:#FF5050;margin-bottom:12px;line-height:1.5;background:rgba(255,60,60,.06);border:1px solid rgba(255,60,60,.15);border-radius:10px;padding:10px 12px;text-align:left;display:none}
+  .btn-enter{width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#4DA0FF,#FFB400);color:#000;font-weight:800;font-size:16px;cursor:pointer;font-family:'Anybody',sans-serif}
+  .btn-enter:disabled{opacity:.4;cursor:default}
+  .btn-secondary{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;margin-top:10px}
+  .btn-secondary:hover{background:rgba(255,255,255,.08)}
+
+  /* PIN input */
+  .pin-row{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
+  .pin-digit{width:48px;height:56px;border-radius:12px;border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#FFB400;font-size:24px;font-weight:800;text-align:center;outline:none;font-family:'Anybody',sans-serif;-webkit-appearance:none;appearance:none}
+  .pin-digit:focus{border-color:#FFB400;background:rgba(255,180,0,.08)}
+  .pin-hint{font-size:11px;color:#555;margin-bottom:16px}
+
+  /* Avatar upload */
+  .avatar-upload{display:flex;flex-direction:column;align-items:center;margin-bottom:18px}
+  .avatar-preview{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,180,0,.3);object-fit:cover;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;position:relative;transition:border-color .2s}
+  .avatar-preview:hover{border-color:#FFB400}
+  .avatar-preview img{width:100%;height:100%;object-fit:cover}
+  .avatar-preview .placeholder{font-size:32px;color:#555}
+  .avatar-hint{font-size:11px;color:#666;margin-top:6px}
+  .avatar-upload input[type="file"]{display:none}
+
+  /* Tabs toggle for login/register */
+  .auth-tabs{display:flex;gap:0;margin-bottom:20px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+  .auth-tab{flex:1;padding:10px;border:none;background:rgba(255,255,255,.02);color:#666;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s}
+  .auth-tab.active{background:rgba(255,180,0,.12);color:#FFB400}
+
+  /* Header */
+  .header{padding:16px 20px 12px;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,rgba(77,160,255,.06) 0%,transparent 100%)}
+  .header .app-logo{width:40px;height:40px;border-radius:10px;object-fit:cover}
+  .header-text h1{font-size:20px;font-weight:900;font-family:'Anybody',sans-serif;background:linear-gradient(135deg,#4DA0FF,#FFB400);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .header-text p{color:#555;font-size:11px}
+  .header-profile{margin-left:auto;display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:20px;transition:background .15s}
+  .header-profile:hover{background:rgba(255,255,255,.05)}
+  .header-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid rgba(77,160,255,.3)}
+  .header-name{color:#4DA0FF;font-size:12px;font-weight:700}
+
+  .stats{display:flex;gap:8px;padding:0 20px 14px;flex-wrap:wrap}
+  .stat-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px;flex:1 1 28%;min-width:95px}
+  .stat-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+  .stat-value{font-size:22px;font-weight:800;color:#f0f0f0;font-family:'Anybody',sans-serif}
+
+  .tabs{display:flex;padding:0 20px 12px}
+  .tab{flex:1;padding:10px 0;border:none;background:rgba(255,255,255,.02);color:#555;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:.5px;border-bottom:2px solid transparent;transition:all .2s}
+  .tab:first-child{border-radius:10px 0 0 0}.tab:last-child{border-radius:0 10px 0 0}
+  .tab.active{background:rgba(255,180,0,.1);color:#FFB400;border-bottom-color:#FFB400}
+
+  .filters{padding:0 20px 12px;display:flex;gap:6px;flex-wrap:wrap}
+  .chip{padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#666;font-size:12px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px}
+  .chip.active{border-color:#FFB400;background:rgba(255,180,0,.1);color:#FFB400}
+  .chip-avatar{width:16px;height:16px;border-radius:50%;object-fit:cover}
+
+  .bets-list{padding:0 20px}
+  .bet-card{border-radius:16px;padding:16px;margin-bottom:10px}
+  .bet-card.pending{background:rgba(255,180,0,.03);border:1px solid rgba(255,180,0,.2)}
+  .bet-card.resolved{background:rgba(0,220,130,.03);border:1px solid rgba(0,220,130,.2)}
+  .bet-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+  .bet-desc{font-size:15px;font-weight:700;color:#f0f0f0;line-height:1.3;flex:1;padding-right:8px}
+  .badge{font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+  .badge.pending{background:rgba(255,180,0,.12);color:#FFB400}
+  .badge.resolved{background:rgba(0,220,130,.12);color:#00DC82}
+  .bet-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .bet-tag{font-size:11px;color:#888;background:rgba(255,255,255,.04);padding:2px 10px;border-radius:20px;display:flex;align-items:center;gap:4px}
+  .bet-tag-avatar{width:14px;height:14px;border-radius:50%;object-fit:cover}
+  .bet-stake{font-size:13px;color:#bbb;margin-bottom:6px}.bet-stake strong{color:#f0f0f0}
+  .bet-deadline{font-size:12px;color:#666;margin-bottom:6px}
+  .bet-creator{font-size:11px;color:#555;margin-bottom:8px;font-style:italic;display:flex;align-items:center;gap:4px}
+  .bet-creator-avatar{width:14px;height:14px;border-radius:50%;object-fit:cover}
+
+  .bet-actions{display:flex;gap:8px;margin-top:10px}
+  .btn-win{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(0,220,130,.25);background:rgba(0,220,130,.08);color:#00DC82;font-weight:700;font-size:13px;cursor:pointer}
+  .btn-win:active{background:rgba(0,220,130,.2)}
+  .btn-del-small{padding:9px 12px;border-radius:10px;border:1px solid rgba(255,60,60,.2);background:rgba(255,60,60,.06);color:#FF5050;font-weight:700;font-size:13px;cursor:pointer}
+  .btn-del-history{padding:4px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);color:#555;font-size:11px;cursor:pointer;float:right;margin-top:4px}
+
+  .empty{text-align:center;padding:40px 20px;color:#444}
+  .empty-icon{font-size:40px;margin-bottom:12px}
+  .empty-hint{font-size:13px;margin-top:8px;color:#555}
+
+  .lb-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.02)}
+  .lb-row.first{background:rgba(255,180,0,.06);border-color:rgba(255,180,0,.15)}
+  .lb-medal{font-size:22px;width:32px;text-align:center;flex-shrink:0}
+  .lb-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.1);flex-shrink:0}
+  .lb-info{flex:1}.lb-name{font-weight:700;color:#f0f0f0;font-size:15px}.lb-sub{font-size:12px;color:#666}
+  .lb-score{text-align:right;white-space:nowrap}
+  .lb-w{color:#00DC82;font-weight:800;font-size:16px}.lb-l{color:#FF5050;font-weight:800;font-size:16px}.lb-sep{color:#444;margin:0 4px}
+  .lb-ring{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0}
+
+  .profile-section{text-align:center;padding:10px 0}
+  .profile-avatar-big{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,180,0,.3);margin-bottom:12px}
+  .profile-name{font-size:18px;font-weight:800;color:#f0f0f0;margin-bottom:4px}
+  .profile-pin-info{font-size:12px;color:#888;margin-bottom:4px}
+  .profile-stats{font-size:13px;color:#888;margin-bottom:16px}
+  .profile-actions{display:flex;flex-direction:column;gap:8px}
+  .btn-profile-action{padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#ccc;font-size:14px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px}
+  .btn-profile-action:hover{background:rgba(255,255,255,.08)}
+  .btn-logout{border-color:rgba(255,60,60,.2);color:#FF5050}
+
+  .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#FFB400,#FF6B00);color:#000;font-size:28px;font-weight:900;cursor:pointer;box-shadow:0 4px 24px rgba(255,180,0,.35);display:flex;align-items:center;justify-content:center;z-index:50}
+  .fab:active{transform:scale(.92)}
+  @media(min-width:520px){.fab{right:calc(50% - 220px)}}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;z-index:100;padding:16px}
+  .modal-overlay.center{align-items:center}
+  .modal{background:#16161e;border-radius:24px;padding:24px;width:100%;max-width:420px;border:1px solid rgba(255,255,255,.08);max-height:85vh;overflow-y:auto;animation:slideUp .25s ease-out}
+  @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .modal-title{color:#f0f0f0;font-size:20px;font-weight:800;font-family:'Anybody',sans-serif}
+  .modal-close{background:rgba(255,255,255,.06);border:none;color:#666;width:32px;height:32px;border-radius:10px;font-size:18px;cursor:pointer}
+  .form-group{margin-bottom:14px}
+  .form-label{font-size:12px;color:#666;letter-spacing:1px;display:block;margin-bottom:6px}
+  .form-input,.form-select,.form-textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#f0f0f0;font-size:14px;outline:none;-webkit-appearance:none;appearance:none}
+  .form-textarea{min-height:70px;resize:vertical}
+  .form-row{display:flex;gap:10px}.form-row>.form-group{flex:1}
+  .btn-submit{width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#FFB400,#FF6B00);color:#000;font-weight:800;font-size:16px;cursor:pointer;font-family:'Anybody',sans-serif;margin-top:6px}
+  .btn-submit:active{opacity:.85}
+
+  .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .confirm-box{background:#16161e;border-radius:20px;padding:24px;max-width:320px;width:100%;border:1px solid rgba(255,255,255,.08);text-align:center;animation:slideUp .2s ease-out}
+  .confirm-box p{color:#bbb;font-size:14px;margin-bottom:20px;line-height:1.5}
+  .confirm-actions{display:flex;gap:10px}
+  .confirm-actions button{flex:1;padding:10px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer}
+  .btn-cancel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#666}
+  .btn-confirm-delete{background:rgba(255,60,60,.12);border:1px solid rgba(255,60,60,.25);color:#FF5050}
+
+  .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:6px}
+  .sync-dot.online{background:#00DC82;box-shadow:0 0 6px rgba(0,220,130,.5)}
+  .sync-dot.offline{background:#FF5050}
+
+  .loading{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+  .spinner{width:40px;height:40px;border:3px solid rgba(255,180,0,.2);border-top-color:#FFB400;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading"><div class="spinner"></div><div style="color:#555;font-size:13px">Connexion à BetBook...</div></div></div>
+<script>
+// ═══════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCw1yWZaJctIhrDN3-remC4XE3Uo2-f3kA",
+  authDomain: "betbook-28595.firebaseapp.com",
+  databaseURL: "https://betbook-28595-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "betbook-28595",
+  storageBucket: "betbook-28595.firebasestorage.app",
+  messagingSenderId: "109303325216",
+  appId: "1:109303325216:web:99ad4439f0cf0135449245"
+};
+// ═══════════════════════════════════════════════════════════
+
+const PLAYERS=["Aurélien","Thomas","Geoffrey","Matthieu","Claude"];
+const USR_KEY="betbook_user";
+let db=null,betsRef=null,profilesRef=null,fbOk=false;
+
+function initFB(){
+  try{
+    if(firebaseConfig.apiKey==="REMPLACE_MOI")return false;
+    firebase.initializeApp(firebaseConfig);
+    db=firebase.database();
+    betsRef=db.ref("bets");
+    profilesRef=db.ref("profiles");
+    fbOk=true;return true;
+  }catch(e){console.error(e);return false}
+}
+
+function compressImage(file,maxW=200){
+  return new Promise((res)=>{
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement("canvas");
+        const ratio=Math.min(maxW/img.width,maxW/img.height,1);
+        c.width=img.width*ratio;c.height=img.height*ratio;
+        const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);
+        res(c.toDataURL("image/jpeg",0.7));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Simple hash for PIN (not crypto-secure, but fine for a bet tracker between friends)
+function hashPin(pin){
+  let h=0;const s=pin+"betbook_salt";
+  for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}
+  return "h_"+Math.abs(h).toString(36);
+}
+
+function loadLocal(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d))}catch{return d}}
+function saveLocal(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function fmtDate(d){return new Date(d).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}
+
+let S={
+  bets:{},profiles:{},
+  tab:"active",filter:"all",
+  showForm:false,showProfile:false,confirmDelete:null,
+  authMode:"login", // login | register
+  user:null,
+  online:false,loaded:false,fbReady:false
+};
+
+const savedUser=loadLocal(USR_KEY,null);
+if(savedUser)S.user=savedUser;
+
+function set(p){Object.assign(S,p);render()}
+
+function getProfile(name){return Object.values(S.profiles).find(p=>p.name===name)||null}
+function getAvatar(name){const p=getProfile(name);return p&&p.photo?p.photo:null}
+function avatarEl(name,size,cls){
+  const photo=getAvatar(name);
+  if(photo)return h("img",{className:cls||"",src:photo,alt:name,style:{width:size+"px",height:size+"px",borderRadius:"50%",objectFit:"cover"}});
+  const letter=(name||"?")[0].toUpperCase();
+  return h("div",{className:cls||"",style:{width:size+"px",height:size+"px",borderRadius:"50%",background:"rgba(77,160,255,.15)",color:"#4DA0FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:(size*0.45)+"px",fontWeight:"800",flexShrink:"0"}},letter);
+}
+
+function saveProfile(profile){
+  if(fbOk)profilesRef.child(profile.id).set(profile);
+  else{S.profiles[profile.id]=profile;saveLocal("bb_profiles",S.profiles)}
+}
+function addBet(b){if(fbOk)betsRef.child(b.id).set(b);else{S.bets[b.id]=b;saveLocal("bb_bets",S.bets)}set({showForm:false})}
+function resolveBet(id,w){const u={status:"won",winner:w,resolvedDate:new Date().toISOString()};if(fbOk)betsRef.child(id).update(u);else{Object.assign(S.bets[id],u);saveLocal("bb_bets",S.bets)}render()}
+function deleteBet(id){if(fbOk)betsRef.child(id).remove();else{delete S.bets[id];saveLocal("bb_bets",S.bets)}set({confirmDelete:null})}
+function betsArr(){return Object.values(S.bets).sort((a,b)=>new Date(b.date)-new Date(a.date))}
+
+function h(t,a,...c){const e=document.createElement(t);if(a)for(const[k,v]of Object.entries(a)){if(k.startsWith("on"))e.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")e.className=v;else if(k==="style"&&typeof v==="object")Object.assign(e.style,v);else e[k]=v}for(const x of c.flat()){if(x==null||x===false)continue;e.appendChild(typeof x==="string"||typeof x==="number"?document.createTextNode(String(x)):x)}return e}
+
+// ── PIN input component ──
+function pinInput(){
+  const digits=[];
+  const row=h("div",{className:"pin-row"});
+  for(let i=0;i<4;i++){
+    const inp=h("input",{className:"pin-digit",type:"tel",maxLength:"1",inputMode:"numeric",pattern:"[0-9]"});
+    inp.addEventListener("input",(e)=>{
+      inp.value=inp.value.replace(/[^0-9]/g,"").slice(0,1);
+      if(inp.value&&i<3)digits[i+1].focus();
+    });
+    inp.addEventListener("keydown",(e)=>{
+      if(e.key==="Backspace"&&!inp.value&&i>0){digits[i-1].focus();digits[i-1].value="";}
+    });
+    inp.addEventListener("paste",(e)=>{
+      e.preventDefault();
+      const paste=(e.clipboardData||window.clipboardData).getData("text").replace(/[^0-9]/g,"").slice(0,4);
+      for(let j=0;j<paste.length&&j<4;j++){digits[j].value=paste[j]}
+      if(paste.length>0)digits[Math.min(paste.length-1,3)].focus();
+    });
+    digits.push(inp);
+    row.appendChild(inp);
+  }
+  return {el:row,getPin:()=>digits.map(d=>d.value).join(""),digits};
+}
+
+// ── Auth Screen ──
+function renderSetup(){
+  const app=document.getElementById("app");app.innerHTML="";
+  const isLogin=S.authMode==="login";
+
+  // Tab toggle
+  const authTabs=h("div",{className:"auth-tabs"},
+    h("button",{className:`auth-tab ${isLogin?"active":""}`,onClick:()=>set({authMode:"login"})},"🔑 Connexion"),
+    h("button",{className:`auth-tab ${!isLogin?"active":""}`,onClick:()=>set({authMode:"register"})},"✨ Nouveau compte")
+  );
+
+  const errorBox=h("div",{className:"error"});
+
+  function showError(msg){errorBox.textContent=msg;errorBox.style.display="block"}
+  function hideError(){errorBox.style.display="none"}
+
+  if(isLogin){
+    // ── LOGIN ──
+    const nameInp=h("input",{type:"text",placeholder:"Ton prénom..."});
+    const pin=pinInput();
+
+    function doLogin(){
+      hideError();
+      const name=nameInp.value.trim();
+      const code=pin.getPin();
+      if(!name){showError("Entre ton prénom");return}
+      if(code.length!==4){showError("Entre ton code à 4 chiffres");return}
+      const hashed=hashPin(code);
+      const profile=Object.values(S.profiles).find(p=>p.name.toLowerCase()===name.toLowerCase()&&p.pinHash===hashed);
+      if(!profile){showError("Prénom ou code incorrect");return}
+      S.user={id:profile.id,name:profile.name};
+      saveLocal(USR_KEY,S.user);
+      S.loaded=true;render();
+    }
+
+    nameInp.addEventListener("keydown",e=>{if(e.key==="Enter"){pin.digits[0].focus()}});
+
+    app.appendChild(h("div",{className:"setup-screen"},
+      h("img",{className:"app-logo",src:"logo.png",alt:"BetBook"}),
+      h("h1",null,"BetBook"),
+      h("div",{className:"subtitle"},"Le registre officiel des paris entre potes"),
+      h("div",{className:"setup-box"},
+        authTabs,
+        h("label",null,"TON PRÉNOM"),nameInp,
+        h("label",null,"TON CODE PIN"),
+        pin.el,
+        h("div",{className:"pin-hint"},"Le code à 4 chiffres choisi à l'inscription"),
+        errorBox,
+        h("button",{className:"btn-enter",onClick:doLogin},"🔑 Se connecter")
+      )
+    ));
+  } else {
+    // ── REGISTER ──
+    let photoData=null;
+    const nameInp=h("input",{type:"text",placeholder:"Ex: Aurélien, Thomas..."});
+    const pin=pinInput();
+
+    const previewContainer=h("div",{className:"avatar-preview"});
+    function updatePreview(){
+      previewContainer.innerHTML="";
+      if(photoData)previewContainer.appendChild(h("img",{src:photoData,alt:"avatar"}));
+      else previewContainer.appendChild(h("span",{className:"placeholder"},"📷"));
+    }
+    updatePreview();
+
+    const fileInp=h("input",{type:"file",accept:"image/*"});
+    fileInp.addEventListener("change",async(e)=>{
+      const f=e.target.files[0];if(!f)return;
+      photoData=await compressImage(f);
+      updatePreview();
+    });
+    previewContainer.addEventListener("click",()=>fileInp.click());
+
+    function doRegister(){
+      hideError();
+      const name=nameInp.value.trim();
+      const code=pin.getPin();
+      if(!name){showError("Entre ton prénom");return}
+      if(code.length!==4){showError("Choisis un code à 4 chiffres");return}
+      // Check if name already taken
+      const existing=Object.values(S.profiles).find(p=>p.name.toLowerCase()===name.toLowerCase());
+      if(existing){showError(`"${name}" est déjà pris, choisis un autre prénom`);return}
+      const id=genId();
+      const profile={id,name,photo:photoData,pinHash:hashPin(code),joinedAt:new Date().toISOString()};
+      saveProfile(profile);
+      S.user={id,name};
+      saveLocal(USR_KEY,S.user);
+      S.loaded=true;render();
+    }
+
+    app.appendChild(h("div",{className:"setup-screen"},
+      h("img",{className:"app-logo",src:"logo.png",alt:"BetBook"}),
+      h("h1",null,"BetBook"),
+      h("div",{className:"subtitle"},"Le registre officiel des paris entre potes"),
+      h("div",{className:"setup-box"},
+        authTabs,
+        h("div",{className:"avatar-upload"},previewContainer,fileInp,h("div",{className:"avatar-hint"},"Appuie pour ajouter ta photo")),
+        h("label",null,"TON PRÉNOM"),nameInp,
+        h("label",null,"CHOISIS UN CODE PIN (4 chiffres)"),
+        pin.el,
+        h("div",{className:"pin-hint"},"Tu en auras besoin pour te reconnecter sur un autre appareil"),
+        errorBox,
+        h("button",{className:"btn-enter",onClick:doRegister},"✨ Créer mon compte")
+      )
+    ));
+  }
+}
+
+// ── Components ──
+function statCard(l,v,e){return h("div",{className:"stat-card"},h("div",{className:"stat-label"},l),h("div",{className:"stat-value"},`${e} ${v}`))}
+
+function betCard(b){
+  const p=b.status==="pending";
+  const c=h("div",{className:`bet-card ${p?"pending":"resolved"}`},
+    h("div",{className:"bet-header"},h("div",{className:"bet-desc"},b.description),h("span",{className:`badge ${p?"pending":"resolved"}`},p?"⏳ EN COURS":`🏆 ${b.winner} gagne`)),
+    h("div",{className:"bet-meta"},
+      h("span",{className:"bet-tag"},avatarEl(b.player1,14,"bet-tag-avatar"),` ${b.player1} vs ${b.player2} `,avatarEl(b.player2,14,"bet-tag-avatar")),
+      h("span",{className:"bet-tag"},fmtDate(b.date))
+    ),
+    b.stake?h("div",{className:"bet-stake"},"💰 Enjeu : ",h("strong",null,b.stake)):null,
+    b.deadline?h("div",{className:"bet-deadline"},`📅 Échéance : ${fmtDate(b.deadline)}`):null,
+    b.createdBy?h("div",{className:"bet-creator"},avatarEl(b.createdBy,14,"bet-creator-avatar"),`Créé par ${b.createdBy}`):null
+  );
+  if(p)c.appendChild(h("div",{className:"bet-actions"},
+    h("button",{className:"btn-win",onClick:()=>resolveBet(b.id,b.player1)},`🏅 ${b.player1}`),
+    h("button",{className:"btn-win",onClick:()=>resolveBet(b.id,b.player2)},`🏅 ${b.player2}`),
+    h("button",{className:"btn-del-small",onClick:()=>set({confirmDelete:b.id})},"✕")
+  ));
+  else c.appendChild(h("button",{className:"btn-del-history",onClick:()=>set({confirmDelete:b.id})},"Supprimer"));
+  return c;
+}
+
+function leaderboard(){
+  const bs=betsArr(),st={};
+  bs.forEach(b=>{if(b.status!=="pending"&&b.winner){const l=b.winner===b.player1?b.player2:b.player1;if(!st[b.winner])st[b.winner]={w:0,l:0};if(!st[l])st[l]={w:0,l:0};st[b.winner].w++;st[l].l++}});
+  const s=Object.entries(st).map(([n,x])=>({n,...x,t:x.w+x.l,r:x.t?x.w/(x.w+x.l):0})).sort((a,b)=>b.w-a.w||a.l-b.l);
+  if(!s.length)return h("div",{className:"empty"},h("div",{className:"empty-icon"},"🏜️"),"Aucun pari résolu");
+  const m=["🥇","🥈","🥉"];
+  return h("div",null,...s.map((p,i)=>h("div",{className:`lb-row ${i===0?"first":""}`},
+    h("span",{className:"lb-medal"},m[i]||`#${i+1}`),
+    avatarEl(p.n,36,"lb-avatar"),
+    h("div",{className:"lb-info"},h("div",{className:"lb-name"},p.n),h("div",{className:"lb-sub"},`${p.t} paris résolus`)),
+    h("div",{className:"lb-score"},h("span",{className:"lb-w"},`${p.w}W`),h("span",{className:"lb-sep"},"-"),h("span",{className:"lb-l"},`${p.l}L`)),
+    h("div",{className:"lb-ring",style:{background:`conic-gradient(#00DC82 ${p.r*360}deg, rgba(255,60,60,.25) 0deg)`}},`${Math.round(p.r*100)}%`)
+  )));
+}
+
+function profileModal(){
+  const u=S.user;
+  const profile=getProfile(u.name);
+  const bs=betsArr();
+  const myBets=bs.filter(b=>b.player1===u.name||b.player2===u.name);
+  const wins=myBets.filter(b=>b.winner===u.name).length;
+  const losses=myBets.filter(b=>b.winner&&b.winner!==u.name).length;
+  const pending=myBets.filter(b=>b.status==="pending").length;
+
+  const fileInp=h("input",{type:"file",accept:"image/*",style:{display:"none"}});
+  fileInp.addEventListener("change",async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    const newPhoto=await compressImage(f);
+    if(profile){
+      profile.photo=newPhoto;
+      saveProfile(profile);
+    }
+    render();set({showProfile:true});
+  });
+
+  const ov=h("div",{className:"modal-overlay center",onClick:e=>{if(e.target===ov)set({showProfile:false})}},
+    h("div",{className:"modal"},
+      h("div",{className:"modal-header"},h("h3",{className:"modal-title"},"👤 Mon Profil"),h("button",{className:"modal-close",onClick:()=>set({showProfile:false})},"✕")),
+      h("div",{className:"profile-section"},
+        (()=>{const av=avatarEl(u.name,80,"profile-avatar-big");av.style.cursor="pointer";av.addEventListener("click",()=>fileInp.click());return av})(),
+        fileInp,
+        h("div",{className:"profile-name"},u.name),
+        h("div",{className:"profile-pin-info"},"🔑 Connecté avec PIN"),
+        h("div",{className:"profile-stats"},`${wins}W - ${losses}L · ${pending} en cours · ${myBets.length} total`)
+      ),
+      h("div",{className:"profile-actions"},
+        h("button",{className:"btn-profile-action",onClick:()=>{fileInp.click()}},"📷  Changer ma photo"),
+        h("button",{className:"btn-profile-action",onClick:()=>{
+          const newName=prompt("Nouveau pseudo :",u.name);
+          if(newName&&newName.trim()){
+            const existing=Object.values(S.profiles).find(p=>p.name.toLowerCase()===newName.trim().toLowerCase()&&p.id!==u.id);
+            if(existing){alert("Ce pseudo est déjà pris !");return}
+            if(profile){profile.name=newName.trim();saveProfile(profile)}
+            S.user={...S.user,name:newName.trim()};
+            saveLocal(USR_KEY,S.user);
+            set({showProfile:false});
+          }
+        }},"✏️  Changer mon pseudo"),
+        h("button",{className:"btn-profile-action",onClick:()=>{
+          const newPin=prompt("Nouveau code PIN (4 chiffres) :");
+          if(newPin&&/^\d{4}$/.test(newPin)){
+            if(profile){profile.pinHash=hashPin(newPin);saveProfile(profile)}
+            alert("Code PIN mis à jour !");
+          }else if(newPin){alert("Le code doit faire 4 chiffres")}
+        }},"🔒  Changer mon code PIN"),
+        h("button",{className:"btn-profile-action btn-logout",onClick:()=>{
+          localStorage.removeItem(USR_KEY);S.user=null;S.loaded=false;set({showProfile:false});
+        }},"🚪  Se déconnecter")
+      )
+    )
+  );
+  return ov;
+}
+
+function formModal(){
+  let uc1=false,uc2=false;
+  // Build player list from registered profiles + defaults
+  const registeredNames=Object.values(S.profiles).map(p=>p.name);
+  const allNames=[...new Set([...registeredNames,...PLAYERS])];
+
+  function mkSel(dv){const s=h("select",{className:"form-select"});allNames.forEach(p=>{const o=h("option",{value:p},p);if(p===dv)o.selected=true;s.appendChild(o)});s.appendChild(h("option",{value:"__custom"},"+ Autre..."));return s}
+  const s1=mkSel(S.user?S.user.name:allNames[0]),s2=mkSel(allNames.find(n=>n!==(S.user?S.user.name:allNames[0]))||allNames[1]);
+  const c1=h("input",{className:"form-input",placeholder:"Nom...",style:{display:"none"}}),c2=h("input",{className:"form-input",placeholder:"Nom...",style:{display:"none"}});
+  s1.addEventListener("change",()=>{if(s1.value==="__custom"){s1.style.display="none";c1.style.display="block";c1.focus();uc1=true}});
+  s2.addEventListener("change",()=>{if(s2.value==="__custom"){s2.style.display="none";c2.style.display="block";c2.focus();uc2=true}});
+  const desc=h("textarea",{className:"form-textarea",placeholder:"Ex: La France gagne l'Euro 2028..."}),stake=h("input",{className:"form-input",placeholder:"Ex: Tournée de bières, 20€..."}),dl=h("input",{className:"form-input",type:"date"});
+  const ov=h("div",{className:"modal-overlay",onClick:e=>{if(e.target===ov)set({showForm:false})}},
+    h("div",{className:"modal"},
+      h("div",{className:"modal-header"},h("h3",{className:"modal-title"},"🎲 Nouveau Pari"),h("button",{className:"modal-close",onClick:()=>set({showForm:false})},"✕")),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"DESCRIPTION DU PARI"),desc),
+      h("div",{className:"form-row"},h("div",{className:"form-group"},h("label",{className:"form-label"},"JOUEUR 1"),s1,c1),h("div",{className:"form-group"},h("label",{className:"form-label"},"JOUEUR 2"),s2,c2)),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"ENJEU (GAGE / LOT)"),stake),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"DATE LIMITE (optionnel)"),dl),
+      h("button",{className:"btn-submit",onClick:()=>{
+        const d=desc.value.trim();if(!d)return;
+        const p1=uc1?c1.value.trim():s1.value,p2=uc2?c2.value.trim():s2.value;if(!p1||!p2)return;
+        addBet({id:genId(),description:d,player1:p1,player2:p2,stake:stake.value.trim(),deadline:dl.value||null,date:new Date().toISOString(),status:"pending",winner:null,createdBy:S.user.name});
+      }},"🔥 Valider le Pari")
+    )
+  );return ov;
+}
+
+function confirmModal(id){
+  const ov=h("div",{className:"confirm-overlay",onClick:e=>{if(e.target===ov)set({confirmDelete:null})}},
+    h("div",{className:"confirm-box"},h("p",null,"Supprimer ce pari définitivement ?"),h("div",{className:"confirm-actions"},
+      h("button",{className:"btn-cancel",onClick:()=>set({confirmDelete:null})},"Annuler"),
+      h("button",{className:"btn-confirm-delete",onClick:()=>deleteBet(id)},"Supprimer")
+    ))
+  );return ov;
+}
+
+// ── Main Render ──
+function render(){
+  document.querySelectorAll(".modal-overlay,.confirm-overlay").forEach(e=>e.remove());
+
+  // If not logged in or profiles not loaded yet
+  if(!S.user||!S.loaded){
+    // Wait for Firebase profiles to load before showing login
+    if(fbOk&&!S.fbReady){return}
+    renderSetup();return;
+  }
+
+  const app=document.getElementById("app");app.innerHTML="";
+  const bs=betsArr(),act=bs.filter(b=>b.status==="pending"),hist=bs.filter(b=>b.status!=="pending");
+  const disp=S.tab==="active"?act:hist;
+  const pl=[...new Set(bs.flatMap(b=>[b.player1,b.player2]))];
+  const filt=S.filter==="all"?disp:disp.filter(b=>b.player1===S.filter||b.player2===S.filter);
+
+  app.appendChild(h("div",{className:"header"},
+    h("img",{className:"app-logo",src:"logo.png",alt:"BetBook"}),
+    h("div",{className:"header-text"},
+      h("h1",null,"BetBook",h("span",{className:`sync-dot ${S.online?"online":"offline"}`})),
+      h("p",null,S.online?"Synchronisé en temps réel":"Mode local")
+    ),
+    h("div",{className:"header-profile",onClick:()=>set({showProfile:true})},
+      h("span",{className:"header-name"},S.user.name),
+      avatarEl(S.user.name,32,"header-avatar")
+    )
+  ));
+
+  app.appendChild(h("div",{className:"stats"},statCard("En cours",act.length,"⏳"),statCard("Résolus",hist.length,"🏅"),statCard("Total",bs.length,"🔥")));
+
+  const tabs=h("div",{className:"tabs"});
+  [["active","⏳ En cours"],["history","🏆 Historique"],["leaderboard","🔥 Classement"]].forEach(([k,l])=>{
+    tabs.appendChild(h("button",{className:`tab ${S.tab===k?"active":""}`,onClick:()=>set({tab:k,filter:"all"})},l));
+  });app.appendChild(tabs);
+
+  if(S.tab!=="leaderboard"&&pl.length>0){
+    const f=h("div",{className:"filters"});
+    f.appendChild(h("button",{className:`chip ${S.filter==="all"?"active":""}`,onClick:()=>set({filter:"all"})},"Tous"));
+    pl.forEach(p=>f.appendChild(h("button",{className:`chip ${S.filter===p?"active":""}`,onClick:()=>set({filter:p})},avatarEl(p,16,"chip-avatar"),p)));
+    app.appendChild(f);
+  }
+
+  const cnt=h("div",{className:"bets-list"});
+  if(S.tab==="leaderboard")cnt.appendChild(leaderboard());
+  else if(!filt.length)cnt.appendChild(h("div",{className:"empty"},h("div",{className:"empty-icon"},S.tab==="active"?"🎯":"📜"),S.tab==="active"?"Aucun pari en cours":"Pas encore d'historique",S.tab==="active"?h("div",{className:"empty-hint"},"Appuie sur + pour lancer un pari !"):null));
+  else filt.forEach(b=>cnt.appendChild(betCard(b)));
+  app.appendChild(cnt);
+
+  app.appendChild(h("button",{className:"fab",onClick:()=>set({showForm:true})},"+"));
+
+  if(S.showForm)document.body.appendChild(formModal());
+  if(S.showProfile)document.body.appendChild(profileModal());
+  if(S.confirmDelete)document.body.appendChild(confirmModal(S.confirmDelete));
+}
+
+// ── Init ──
+(function(){
+  initFB();
+  if(fbOk){
+    // Load profiles first, then allow login
+    profilesRef.once("value",snap=>{
+      S.profiles=snap.val()||{};
+      S.fbReady=true;
+      // Then listen for realtime updates
+      profilesRef.on("value",snap=>{S.profiles=snap.val()||{};if(S.loaded)render()});
+      betsRef.on("value",snap=>{S.bets=snap.val()||{};S.online=true;if(S.loaded)render()});
+      db.ref(".info/connected").on("value",snap=>{S.online=!!snap.val();if(S.loaded)render()});
+      if(S.user)S.loaded=true;
+      render();
+    });
+  }else{
+    S.bets=loadLocal("bb_bets",{});
+    S.profiles=loadLocal("bb_profiles",{});
+    S.online=false;S.fbReady=true;
+    if(S.user)S.loaded=true;
+    render();
+  }
+})();
+</script>
+</body>
+</html>
