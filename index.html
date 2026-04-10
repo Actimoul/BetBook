@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎲 BetBook</title>
+<meta name="theme-color" content="#0a0a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a12;color:#f0f0f0;font-family:'DM Sans',-apple-system,sans-serif;min-height:100dvh;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#333;border-radius:4px}
+select option{background:#16161e;color:#f0f0f0}
+input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
+button,input,select,textarea{font-family:inherit}
+#app{max-width:480px;margin:0 auto;position:relative;padding-bottom:100px}
+
+/* Auth */
+.setup-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.setup-screen .app-logo{width:140px;height:140px;border-radius:32px;margin-bottom:24px;object-fit:cover}
+.setup-screen h1{font-size:36px;font-weight:900;font-family:'Anybody',sans-serif;margin-bottom:8px;background:linear-gradient(135deg,#4DA0FF,#FFB400);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.setup-screen .subtitle{color:#666;font-size:14px;margin-bottom:32px}
+.setup-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px;width:100%;max-width:360px}
+.setup-box label{display:block;font-size:12px;color:#888;letter-spacing:1px;margin-bottom:8px;text-align:left}
+.setup-box input[type="text"],.setup-box input[type="password"]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#f0f0f0;font-size:16px;outline:none;margin-bottom:16px}
+.setup-box .info{font-size:12px;color:#555;margin-bottom:16px;line-height:1.5;background:rgba(255,180,0,.06);border:1px solid rgba(255,180,0,.15);border-radius:10px;padding:10px 12px;text-align:left}
+.setup-box .info strong{color:#FFB400}
+.setup-box .error{font-size:12px;color:#FF5050;margin-bottom:12px;background:rgba(255,60,60,.06);border:1px solid rgba(255,60,60,.15);border-radius:10px;padding:10px 12px;text-align:left;display:none}
+.btn-enter{width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#4DA0FF,#FFB400);color:#000;font-weight:800;font-size:16px;cursor:pointer;font-family:'Anybody',sans-serif}
+.auth-tabs{display:flex;margin-bottom:20px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.auth-tab{flex:1;padding:10px;border:none;background:rgba(255,255,255,.02);color:#666;font-weight:700;font-size:13px;cursor:pointer}
+.auth-tab.active{background:rgba(255,180,0,.12);color:#FFB400}
+.pin-row{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
+.pin-digit{width:48px;height:56px;border-radius:12px;border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#FFB400;font-size:24px;font-weight:800;text-align:center;outline:none;font-family:'Anybody',sans-serif;-webkit-appearance:none}
+.pin-digit:focus{border-color:#FFB400}
+.pin-hint{font-size:11px;color:#555;margin-bottom:16px}
+.avatar-upload{display:flex;flex-direction:column;align-items:center;margin-bottom:18px}
+.avatar-preview{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,180,0,.3);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.avatar-preview:hover{border-color:#FFB400}
+.avatar-preview img{width:100%;height:100%;object-fit:cover}
+.avatar-preview .placeholder{font-size:32px;color:#555}
+.avatar-hint{font-size:11px;color:#666;margin-top:6px}
+.avatar-upload input[type="file"]{display:none}
+
+/* Header */
+.header{padding:16px 20px 12px;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,rgba(77,160,255,.06) 0%,transparent 100%)}
+.header .app-logo{width:40px;height:40px;border-radius:10px;object-fit:cover}
+.header-text h1{font-size:20px;font-weight:900;font-family:'Anybody',sans-serif;background:linear-gradient(135deg,#4DA0FF,#FFB400);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-text p{color:#555;font-size:11px}
+.header-profile{margin-left:auto;display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:20px}
+.header-profile:hover{background:rgba(255,255,255,.05)}
+.header-name{color:#4DA0FF;font-size:12px;font-weight:700}
+
+/* Player cards on home */
+.players-section{padding:0 20px 16px}
+.players-title{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.players-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+.players-row::-webkit-scrollbar{display:none}
+.player-card{flex-shrink:0;width:80px;text-align:center;cursor:pointer;padding:8px 4px;border-radius:14px;border:1px solid transparent;transition:all .15s}
+.player-card:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+.player-card .pc-avatar{width:48px;height:48px;border-radius:50%;margin:0 auto 6px;object-fit:cover;border:2px solid rgba(255,255,255,.1)}
+.player-card .pc-name{font-size:11px;font-weight:700;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-card .pc-mood{font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-style:italic;max-width:76px}
+.player-card .pc-wr{font-size:10px;color:#00DC82;font-weight:700;margin-top:2px}
+.player-card.is-me{border-color:rgba(77,160,255,.2);background:rgba(77,160,255,.04)}
+.player-card.is-me .pc-name{color:#4DA0FF}
+
+/* Stats */
+.stats{display:flex;gap:8px;padding:0 20px 14px;flex-wrap:wrap}
+.stat-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px;flex:1 1 22%;min-width:80px}
+.stat-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.stat-value{font-size:20px;font-weight:800;color:#f0f0f0;font-family:'Anybody',sans-serif}
+
+/* Tabs */
+.tabs{display:flex;padding:0 20px 12px}
+.tab{flex:1;padding:10px 0;border:none;background:rgba(255,255,255,.02);color:#555;font-weight:700;font-size:11px;cursor:pointer;letter-spacing:.3px;border-bottom:2px solid transparent;position:relative}
+.tab:first-child{border-radius:10px 0 0 0}.tab:last-child{border-radius:0 10px 0 0}
+.tab.active{background:rgba(255,180,0,.1);color:#FFB400;border-bottom-color:#FFB400}
+.tab-badge{position:absolute;top:4px;right:10px;min-width:18px;height:18px;border-radius:50%;background:#FF5050;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+
+.filters{padding:0 20px 12px;display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#666;font-size:12px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px}
+.chip.active{border-color:#FFB400;background:rgba(255,180,0,.1);color:#FFB400}
+.chip-avatar{width:16px;height:16px;border-radius:50%;object-fit:cover}
+
+/* Bet cards */
+.bets-list{padding:0 20px}
+.bet-card{border-radius:16px;padding:16px;margin-bottom:10px}
+.bet-card.challenge{background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.25)}
+.bet-card.pending{background:rgba(255,180,0,.03);border:1px solid rgba(255,180,0,.2)}
+.bet-card.resolved{background:rgba(0,220,130,.03);border:1px solid rgba(0,220,130,.2)}
+.bet-card.declined{background:rgba(255,60,60,.03);border:1px solid rgba(255,60,60,.15);opacity:.6}
+.bet-card.claiming{background:rgba(77,160,255,.04);border:1px solid rgba(77,160,255,.25)}
+.bet-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.bet-desc{font-size:15px;font-weight:700;color:#f0f0f0;line-height:1.3;flex:1;padding-right:8px}
+.badge{font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+.badge.challenge{background:rgba(168,85,247,.15);color:#A855F7}
+.badge.pending{background:rgba(255,180,0,.12);color:#FFB400}
+.badge.resolved{background:rgba(0,220,130,.12);color:#00DC82}
+.badge.declined{background:rgba(255,60,60,.12);color:#FF5050}
+.badge.claiming{background:rgba(77,160,255,.12);color:#4DA0FF}
+.bet-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.bet-tag{font-size:11px;color:#888;background:rgba(255,255,255,.04);padding:2px 10px;border-radius:20px;display:flex;align-items:center;gap:4px}
+.bet-tag-avatar{width:14px;height:14px;border-radius:50%;object-fit:cover}
+.bet-stake{font-size:13px;color:#bbb;margin-bottom:6px}.bet-stake strong{color:#f0f0f0}
+.bet-deadline{font-size:12px;color:#666;margin-bottom:6px}
+.bet-challenge-info{font-size:12px;color:#A855F7;margin-bottom:8px;padding:8px 10px;background:rgba(168,85,247,.06);border-radius:10px}
+.bet-counter-info{font-size:12px;color:#FFB400;margin-bottom:8px;padding:8px 10px;background:rgba(255,180,0,.06);border-radius:10px}
+
+.claim-banner{border-radius:14px;padding:16px;margin-bottom:8px;text-align:center;line-height:1.5;animation:slideUp .3s ease-out}
+.claim-banner.you-claim{background:rgba(77,160,255,.08);border:1px solid rgba(77,160,255,.2)}
+.claim-banner.they-claim{background:rgba(255,180,0,.08);border:1px solid rgba(255,180,0,.2)}
+.claim-banner .claim-text{font-size:14px;font-weight:700;color:#f0f0f0;margin-top:8px}
+.claim-banner .claim-taunt{font-size:13px;color:#FFB400;font-style:italic}
+.claim-banner .claim-sub{font-size:11px;color:#888;margin-top:6px}
+
+.bet-actions{display:flex;gap:8px;margin-top:10px}
+.btn-accept{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(0,220,130,.25);background:rgba(0,220,130,.08);color:#00DC82;font-weight:700;font-size:13px;cursor:pointer}
+.btn-counter{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(255,180,0,.25);background:rgba(255,180,0,.08);color:#FFB400;font-weight:700;font-size:13px;cursor:pointer}
+.btn-decline{padding:9px 12px;border-radius:10px;border:1px solid rgba(255,60,60,.2);background:rgba(255,60,60,.06);color:#FF5050;font-weight:700;font-size:13px;cursor:pointer}
+.btn-claim{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(77,160,255,.25);background:rgba(77,160,255,.08);color:#4DA0FF;font-weight:700;font-size:13px;cursor:pointer}
+.btn-confirm-win{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(0,220,130,.25);background:rgba(0,220,130,.08);color:#00DC82;font-weight:700;font-size:13px;cursor:pointer}
+.btn-contest{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(255,60,60,.25);background:rgba(255,60,60,.08);color:#FF5050;font-weight:700;font-size:13px;cursor:pointer}
+.btn-waiting{flex:1;padding:9px 0;border-radius:10px;border:1px solid rgba(168,85,247,.2);background:rgba(168,85,247,.06);color:#A855F7;font-weight:600;font-size:12px;cursor:default;font-style:italic}
+.btn-del-small{padding:9px 12px;border-radius:10px;border:1px solid rgba(255,60,60,.2);background:rgba(255,60,60,.06);color:#FF5050;font-weight:700;font-size:13px;cursor:pointer}
+.btn-del-history{padding:4px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);color:#555;font-size:11px;cursor:pointer;float:right;margin-top:4px}
+
+.empty{text-align:center;padding:40px 20px;color:#444}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-hint{font-size:13px;margin-top:8px;color:#555}
+
+/* Leaderboard */
+.lb-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.02)}
+.lb-row.first{background:rgba(255,180,0,.06);border-color:rgba(255,180,0,.15)}
+.lb-medal{font-size:22px;width:32px;text-align:center;flex-shrink:0}
+.lb-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.1);flex-shrink:0}
+.lb-info{flex:1}.lb-name{font-weight:700;color:#f0f0f0;font-size:15px}.lb-sub{font-size:12px;color:#666}
+.lb-score{text-align:right;white-space:nowrap}
+.lb-w{color:#00DC82;font-weight:800;font-size:16px}.lb-l{color:#FF5050;font-weight:800;font-size:16px}.lb-sep{color:#444;margin:0 4px}
+.lb-ring{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0}
+
+/* Profile modal (view any user) */
+.up-section{text-align:center;padding:10px 0}
+.up-avatar{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,180,0,.3);margin:0 auto 10px;cursor:pointer}
+.up-name{font-size:20px;font-weight:900;color:#f0f0f0;font-family:'Anybody',sans-serif}
+.up-mood{font-size:13px;color:#FFB400;font-style:italic;margin-top:4px;min-height:18px}
+.up-joined{font-size:11px;color:#555;margin-top:4px}
+.up-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:16px 0}
+.up-stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px 8px;text-align:center}
+.up-stat-val{font-size:20px;font-weight:800;font-family:'Anybody',sans-serif}
+.up-stat-val.green{color:#00DC82}.up-stat-val.red{color:#FF5050}.up-stat-val.gold{color:#FFB400}
+.up-stat-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.up-wr-bar{height:8px;border-radius:4px;background:rgba(255,60,60,.2);margin:12px 0;overflow:hidden}
+.up-wr-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#00DC82,#4DA0FF)}
+.up-wr-text{font-size:12px;color:#888;text-align:center;margin-bottom:12px}
+.up-h2h{font-size:12px;color:#888;margin-bottom:12px;padding:10px;background:rgba(255,255,255,.03);border-radius:10px;text-align:center}
+.up-h2h strong{color:#f0f0f0}
+.profile-actions{display:flex;flex-direction:column;gap:8px}
+.btn-profile-action{padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#ccc;font-size:14px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px}
+.btn-profile-action:hover{background:rgba(255,255,255,.08)}
+.btn-logout{border-color:rgba(255,60,60,.2);color:#FF5050}
+.btn-challenge-profile{width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#A855F7,#7C3AED);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:'Anybody',sans-serif;margin-top:8px}
+
+/* Modal / FAB */
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#FFB400,#FF6B00);color:#000;font-size:28px;font-weight:900;cursor:pointer;box-shadow:0 4px 24px rgba(255,180,0,.35);display:flex;align-items:center;justify-content:center;z-index:50}
+.fab:active{transform:scale(.92)}
+@media(min-width:520px){.fab{right:calc(50% - 220px)}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;z-index:100;padding:16px}
+.modal-overlay.center{align-items:center}
+.modal{background:#16161e;border-radius:24px;padding:24px;width:100%;max-width:420px;border:1px solid rgba(255,255,255,.08);max-height:85vh;overflow-y:auto;animation:slideUp .25s ease-out}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{color:#f0f0f0;font-size:20px;font-weight:800;font-family:'Anybody',sans-serif}
+.modal-close{background:rgba(255,255,255,.06);border:none;color:#666;width:32px;height:32px;border-radius:10px;font-size:18px;cursor:pointer}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;color:#666;letter-spacing:1px;display:block;margin-bottom:6px}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#f0f0f0;font-size:14px;outline:none;-webkit-appearance:none;appearance:none}
+.form-textarea{min-height:70px;resize:vertical}
+.form-row{display:flex;gap:10px}.form-row>.form-group{flex:1}
+.stake-toggle{display:flex;gap:0;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.stake-toggle button{flex:1;padding:8px;border:none;background:rgba(255,255,255,.02);color:#666;font-size:12px;font-weight:700;cursor:pointer}
+.stake-toggle button.active{background:rgba(255,180,0,.12);color:#FFB400}
+.stake-per-player{display:flex;flex-direction:column;gap:8px}
+.stake-player-row{display:flex;align-items:center;gap:8px}
+.stake-player-row .sp-name{font-size:12px;color:#888;min-width:60px;font-weight:600}
+.stake-player-row input{flex:1}
+.btn-submit{width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#FFB400,#FF6B00);color:#000;font-weight:800;font-size:16px;cursor:pointer;font-family:'Anybody',sans-serif;margin-top:6px}
+.btn-submit:active{opacity:.85}
+.btn-submit.purple{background:linear-gradient(135deg,#A855F7,#7C3AED);color:#fff}
+.btn-wa{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(37,211,102,.25);background:rgba(37,211,102,.08);color:#25D366;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-wa:hover{background:rgba(37,211,102,.15)}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+.confirm-box{background:#16161e;border-radius:20px;padding:24px;max-width:320px;width:100%;border:1px solid rgba(255,255,255,.08);text-align:center;animation:slideUp .2s ease-out}
+.confirm-box p{color:#bbb;font-size:14px;margin-bottom:20px;line-height:1.5}
+.confirm-actions{display:flex;gap:10px}
+.confirm-actions button{flex:1;padding:10px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-cancel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#666}
+.btn-confirm-delete{background:rgba(255,60,60,.12);border:1px solid rgba(255,60,60,.25);color:#FF5050}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:6px}
+.sync-dot.online{background:#00DC82;box-shadow:0 0 6px rgba(0,220,130,.5)}.sync-dot.offline{background:#FF5050}
+.loading{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid rgba(255,180,0,.2);border-top-color:#FFB400;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Toast notification */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);max-width:400px;width:calc(100% - 32px);padding:14px 16px;border-radius:16px;background:#1e1e2a;border:1px solid rgba(168,85,247,.4);box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;gap:12px;animation:toastIn .4s ease-out;cursor:pointer}
+
+/* Reactions */
+.reactions-bar{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.react-btn{padding:4px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);cursor:pointer;font-size:14px;display:flex;align-items:center;gap:3px;transition:all .15s}
+.react-btn:hover{background:rgba(255,255,255,.08)}
+.react-btn.reacted{border-color:rgba(255,180,0,.3);background:rgba(255,180,0,.08)}
+.react-btn .react-count{font-size:11px;font-weight:700;color:#888}
+.react-btn.reacted .react-count{color:#FFB400}
+.react-add{padding:4px 8px;border-radius:20px;border:1px dashed rgba(255,255,255,.12);background:transparent;cursor:pointer;font-size:13px;color:#555;transition:all .15s}
+.react-add:hover{border-color:rgba(255,255,255,.25);color:#888}
+.react-picker{display:flex;gap:4px;flex-wrap:wrap;padding:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;margin-top:6px}
+.react-picker button{background:none;border:none;font-size:20px;cursor:pointer;padding:4px;border-radius:8px;transition:transform .1s}
+.react-picker button:hover{transform:scale(1.3)}
+.react-picker .rp-custom{width:28px;height:28px;border-radius:6px;object-fit:cover;cursor:pointer;padding:0;border:none;background:none;transition:transform .1s}
+.react-picker .rp-custom:hover{transform:scale(1.3)}
+.react-picker .rp-upload{width:28px;height:28px;border-radius:6px;border:1px dashed rgba(255,255,255,.2);background:none;color:#666;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.react-picker .rp-upload:hover{border-color:#FFB400;color:#FFB400}
+.react-picker .rp-divider{width:100%;height:1px;background:rgba(255,255,255,.08);margin:4px 0}
+.react-picker .rp-label{width:100%;font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px}
+.react-btn .custom-emoji{width:18px;height:18px;border-radius:4px;object-fit:cover;vertical-align:middle}
+.emoji-manage{margin-top:8px}
+.emoji-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.emoji-item{position:relative;width:48px;height:48px;border-radius:10px;border:1px solid rgba(255,255,255,.08);overflow:hidden;background:rgba(255,255,255,.03)}
+.emoji-item img{width:100%;height:100%;object-fit:cover}
+.emoji-item .emoji-del{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#FF5050;color:#fff;font-size:10px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900}
+
+/* Comments */
+.comments-section{margin-top:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px}
+.comments-toggle{font-size:12px;color:#666;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600}
+.comments-toggle:hover{color:#888}
+.comments-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.comment{display:flex;gap:8px;align-items:flex-start}
+.comment-body{flex:1}
+.comment-header{display:flex;align-items:center;gap:6px}
+.comment-name{font-size:11px;font-weight:700;color:#aaa}
+.comment-date{font-size:10px;color:#555}
+.comment-text{font-size:13px;color:#ddd;line-height:1.4;margin-top:2px}
+.comment-input-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.comment-input{flex:1;padding:8px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#f0f0f0;font-size:13px;outline:none}
+.comment-input::placeholder{color:#555}
+.comment-send{width:32px;height:32px;border-radius:50%;border:none;background:linear-gradient(135deg,#4DA0FF,#FFB400);color:#000;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.comment-send:active{transform:scale(.9)}
+.toast .toast-avatar{flex-shrink:0}
+.toast .toast-body{flex:1}
+.toast .toast-title{font-size:14px;font-weight:800;color:#A855F7}
+.toast .toast-msg{font-size:12px;color:#ccc;margin-top:2px;line-height:1.3}
+.toast .toast-close{color:#555;font-size:16px;padding:4px;cursor:pointer;flex-shrink:0}
+@keyframes toastIn{from{transform:translateX(-50%) translateY(-20px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading"><div class="spinner"></div><div style="color:#555;font-size:13px">Connexion...</div></div></div>
+<script>
+const FC={apiKey:"AIzaSyCw1yWZaJctIhrDN3-remC4XE3Uo2-f3kA",authDomain:"betbook-28595.firebaseapp.com",databaseURL:"https://betbook-28595-default-rtdb.europe-west1.firebasedatabase.app",projectId:"betbook-28595",storageBucket:"betbook-28595.firebasestorage.app",messagingSenderId:"109303325216",appId:"1:109303325216:web:99ad4439f0cf0135449245"};
+const UK="betbook_user";
+let db,betsRef,profilesRef,emojisRef,fbOk=false;
+function initFB(){try{firebase.initializeApp(FC);db=firebase.database();betsRef=db.ref("bets");profilesRef=db.ref("profiles");emojisRef=db.ref("customEmojis");fbOk=true}catch(e){console.error(e)}}
+function compressImg(f,mw=200){return new Promise(r=>{const rd=new FileReader();rd.onload=e=>{const i=new Image();i.onload=()=>{const c=document.createElement("canvas"),rt=Math.min(mw/i.width,mw/i.height,1);c.width=i.width*rt;c.height=i.height*rt;c.getContext("2d").drawImage(i,0,0,c.width,c.height);r(c.toDataURL("image/jpeg",.7))};i.src=e.target.result};rd.readAsDataURL(f)})}
+function hashPin(p){let h=0;const s=p+"betbook_salt";for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return"h_"+Math.abs(h).toString(36)}
+function ll(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d))}catch{return d}}
+function sl(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function fd(d){return new Date(d).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}
+
+// Invite
+const UP=new URLSearchParams(location.search),invN=UP.get("invite"),invF=UP.get("from");
+function invLink(n,f){return location.origin+location.pathname+`?invite=${encodeURIComponent(n)}&from=${encodeURIComponent(f)}`}
+function invMsg(n,f,d){return`🎲 ${n} ! ${f} t'a lancé un défi sur BetBook !\n\n"${d}"\n\nCrée ton compte 👉 ${invLink(n,f)}`}
+async function shareC(t){if(navigator.share){try{await navigator.share({text:t});return}catch{}}if(navigator.clipboard){await navigator.clipboard.writeText(t);alert("Copié !")}else prompt("Copie :",t)}
+
+// WhatsApp share (no recipient, user picks contact)
+function waLink(msg){return`https://wa.me/?text=${encodeURIComponent(msg)}`}
+function openWA(msg){window.open(waLink(msg),"_blank")}
+
+// State
+let S={bets:{},profiles:{},customEmojis:{},tab:"active",filter:"all",showForm:false,viewUser:null,showProfile:false,showCounter:null,showInvite:null,showWA:null,confirmDelete:null,challengeTarget:null,authMode:invN?"register":"login",user:null,online:false,loaded:false,fbReady:false,seenChallenges:{}};
+const su=ll(UK,null);if(su)S.user=su;
+function set(p){Object.assign(S,p);render()}
+
+function gp(n){return Object.values(S.profiles).find(p=>p.name===n)||null}
+function ga(n){const p=gp(n);return p&&p.photo?p.photo:null}
+function av(n,sz,cl){const ph=ga(n);if(ph)return h("img",{className:cl||"",src:ph,alt:n,style:{width:sz+"px",height:sz+"px",borderRadius:"50%",objectFit:"cover"}});return h("div",{className:cl||"",style:{width:sz+"px",height:sz+"px",borderRadius:"50%",background:"rgba(77,160,255,.15)",color:"#4DA0FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:(sz*.45)+"px",fontWeight:"800",flexShrink:"0"}},(n||"?")[0].toUpperCase())}
+
+// Player stats helper
+function getStats(name){const bs=Object.values(S.bets);const my=bs.filter(b=>b.player1===name||b.player2===name);const w=my.filter(b=>b.winner===name).length,l=my.filter(b=>b.winner&&b.winner!==name&&b.status==="won").length;const pend=my.filter(b=>b.status==="pending"||b.status==="claiming").length;const total=w+l;const wr=total?Math.round(w/total*100):0;return{w,l,pend,total,wr,bets:my.length}}
+function getH2H(me,them){const bs=Object.values(S.bets).filter(b=>b.status==="won"&&((b.player1===me&&b.player2===them)||(b.player1===them&&b.player2===me)));const mw=bs.filter(b=>b.winner===me).length,tw=bs.filter(b=>b.winner===them).length;return{mw,tw,total:bs.length}}
+
+// CRUD
+function sp(p){if(fbOk)profilesRef.child(p.id).set(p);else{S.profiles[p.id]=p;sl("bb_p",S.profiles)}}
+function ub(id,d){if(fbOk)betsRef.child(id).update(d);else{Object.assign(S.bets[id],d);sl("bb_b",S.bets)}render()}
+function ab(b){if(fbOk)betsRef.child(b.id).set(b);else{S.bets[b.id]=b;sl("bb_b",S.bets)}set({showForm:false})}
+function db2(id){if(fbOk)betsRef.child(id).remove();else{delete S.bets[id];sl("bb_b",S.bets)}set({confirmDelete:null})}
+function ba(){return Object.values(S.bets).sort((a,b)=>new Date(b.date)-new Date(a.date))}
+
+function acceptB(id){ub(id,{status:"pending",acceptedAt:new Date().toISOString()})}
+function declineB(id){ub(id,{status:"declined",declinedAt:new Date().toISOString()})}
+function claimV(id,cw,cb){ub(id,{status:"claiming",claimedWinner:cw,claimedBy:cb,claimedAt:new Date().toISOString(),taunt:rTaunt()})}
+function confirmV(id){const b=S.bets[id];if(b)ub(id,{status:"won",winner:b.claimedWinner,resolvedDate:new Date().toISOString()})}
+function contestV(id){ub(id,{status:"pending",claimedWinner:null,claimedBy:null,claimedAt:null,taunt:null})}
+
+const TAUNTS=["se frotte les mains et attend tes larmes 😏","dit que c'était trop facile 💅","danse sur ta défaite 💃","te propose un mouchoir 🤧","savoure ce moment de gloire 👑","est déjà en train de choisir ton gage 😈","attend que tu acceptes avec dignité 🎭","te rappelle que parier c'est un art 🎨","vient de te détruire et il le sait 🔥","t'envoie un bisou de consolation 💋"];
+function rTaunt(){return TAUNTS[Math.floor(Math.random()*TAUNTS.length)]}
+
+// ── Reactions ──
+const QUICK_EMOJIS=["😂","🔥","💀","👀","🤡","😱","💪","🍿","👑","🤝"];
+function toggleReaction(betId,emoji){
+  const b=S.bets[betId];if(!b)return;
+  const me=S.user.name;
+  const reactions=b.reactions?JSON.parse(JSON.stringify(b.reactions)):{};
+  if(!reactions[emoji])reactions[emoji]=[];
+  const idx=reactions[emoji].indexOf(me);
+  if(idx>=0)reactions[emoji].splice(idx,1);else reactions[emoji].push(me);
+  if(reactions[emoji].length===0)delete reactions[emoji];
+  ub(betId,{reactions});
+}
+
+// ── Comments ──
+function addComment(betId,text){
+  const b=S.bets[betId];if(!b||!text.trim())return;
+  const comments=b.comments?[...b.comments]:[];
+  comments.push({user:S.user.name,text:text.trim(),date:new Date().toISOString()});
+  ub(betId,{comments});
+}
+
+// ── Custom Emojis ──
+function compressEmoji(file){return new Promise(r=>{const rd=new FileReader();rd.onload=e=>{const i=new Image();i.onload=()=>{const c=document.createElement("canvas");c.width=64;c.height=64;const ctx=c.getContext("2d");const s=Math.min(i.width,i.height);const sx=(i.width-s)/2,sy=(i.height-s)/2;ctx.drawImage(i,sx,sy,s,s,0,0,64,64);r(c.toDataURL("image/png",.8))};i.src=e.target.result};rd.readAsDataURL(file)})}
+
+function addCustomEmoji(name,dataUrl,createdBy){
+  const id="ce_"+gid();
+  const emoji={id,name,img:dataUrl,createdBy,date:new Date().toISOString()};
+  if(fbOk)emojisRef.child(id).set(emoji);
+  else{S.customEmojis[id]=emoji;sl("bb_ce",S.customEmojis)}
+}
+function deleteCustomEmoji(id){
+  if(fbOk)emojisRef.child(id).remove();
+  else{delete S.customEmojis[id];sl("bb_ce",S.customEmojis)}
+}
+function getCustomEmojis(){return Object.values(S.customEmojis)}
+function isCustomEmoji(key){return key.startsWith("ce_")}
+function getCustomEmojiImg(key){const ce=S.customEmojis[key];return ce?ce.img:null}
+
+// Render emoji (standard or custom)
+function renderEmoji(key,size){
+  if(isCustomEmoji(key)){const img=getCustomEmojiImg(key);if(img)return h("img",{className:"custom-emoji",src:img,alt:"emoji",style:{width:size+"px",height:size+"px",borderRadius:"4px",objectFit:"cover"}});return h("span",null,"?")}
+  return h("span",null,key);
+}
+
+function h(t,a,...c){const e=document.createElement(t);if(a)for(const[k,v]of Object.entries(a)){if(k.startsWith("on"))e.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")e.className=v;else if(k==="style"&&typeof v==="object")Object.assign(e.style,v);else e[k]=v}for(const x of c.flat()){if(x==null||x===false)continue;e.appendChild(typeof x==="string"||typeof x==="number"?document.createTextNode(String(x)):x)}return e}
+function hasM(){return S.showForm||S.showProfile||S.viewUser||S.showCounter||S.showInvite||S.showWA||S.confirmDelete||document.querySelector(".modal-overlay,.confirm-overlay")}
+
+// ── Toast notifications ──
+function showToast(avatar,title,msg,onClick){
+  document.querySelectorAll(".toast").forEach(e=>e.remove());
+  const close=h("div",{className:"toast-close",onClick:e=>{e.stopPropagation();t.remove()}},"✕");
+  const t=h("div",{className:"toast",onClick:()=>{t.remove();if(onClick)onClick()}},
+    h("div",{className:"toast-avatar"},avatar),
+    h("div",{className:"toast-body"},h("div",{className:"toast-title"},title),h("div",{className:"toast-msg"},msg)),
+    close
+  );
+  document.body.appendChild(t);
+  setTimeout(()=>{if(t.parentNode)t.remove()},6000);
+}
+
+function checkNewChallenges(oldBets,newBets){
+  if(!S.user||!S.loaded)return;
+  const me=S.user.name;
+  const oldIds=new Set(Object.keys(oldBets));
+  Object.values(newBets).forEach(b=>{
+    if(!oldIds.has(b.id)&&b.status==="challenge"&&b.lastProposedBy!==me&&(b.player1===me||b.player2===me)){
+      showToast(av(b.createdBy,40,""),`⚔️ ${b.createdBy} te défie !`,b.description,()=>set({tab:"challenges"}));
+    }
+    // Also notify on claim against me
+    const oldB=oldBets[b.id];
+    if(oldB&&oldB.status!=="claiming"&&b.status==="claiming"&&b.claimedBy!==me&&(b.player1===me||b.player2===me)){
+      showToast(av(b.claimedBy,40,""),`🏆 ${b.claimedBy} prétend avoir gagné !`,b.description,()=>set({tab:"active"}));
+    }
+  });
+}
+
+// PIN
+function pinIn(){const d=[];const r=h("div",{className:"pin-row"});for(let i=0;i<4;i++){const inp=h("input",{className:"pin-digit",type:"tel",maxLength:"1",inputMode:"numeric"});inp.addEventListener("input",()=>{inp.value=inp.value.replace(/[^0-9]/g,"").slice(0,1);if(inp.value&&i<3)d[i+1].focus()});inp.addEventListener("keydown",e=>{if(e.key==="Backspace"&&!inp.value&&i>0){d[i-1].focus();d[i-1].value=""}});inp.addEventListener("paste",e=>{e.preventDefault();const p=(e.clipboardData||window.clipboardData).getData("text").replace(/[^0-9]/g,"").slice(0,4);for(let j=0;j<p.length&&j<4;j++)d[j].value=p[j];if(p.length)d[Math.min(p.length-1,3)].focus()});d.push(inp);r.appendChild(inp)}return{el:r,get:()=>d.map(x=>x.value).join(""),d}}
+
+// ── Auth ──
+function renderAuth(){
+  const app=document.getElementById("app");app.innerHTML="";const isL=S.authMode==="login";
+  const at=h("div",{className:"auth-tabs"},h("button",{className:`auth-tab ${isL?"active":""}`,onClick:()=>set({authMode:"login"})},"🔑 Connexion"),h("button",{className:`auth-tab ${!isL?"active":""}`,onClick:()=>set({authMode:"register"})},"✨ Nouveau"));
+  const err=h("div",{className:"error"});const se=m=>{err.textContent=m;err.style.display="block"};const he=()=>{err.style.display="none"};
+  if(isL){
+    const ni=h("input",{type:"text",placeholder:"Ton prénom..."});const pin=pinIn();
+    const go=()=>{he();const n=ni.value.trim(),c=pin.get();if(!n){se("Entre ton prénom");return}if(c.length!==4){se("Code à 4 chiffres");return}const pr=Object.values(S.profiles).find(p=>p.name.toLowerCase()===n.toLowerCase()&&p.pinHash===hashPin(c));if(!pr){se("Prénom ou code incorrect");return}S.user={id:pr.id,name:pr.name};sl(UK,S.user);S.loaded=true;render()};
+    ni.addEventListener("keydown",e=>{if(e.key==="Enter")pin.d[0].focus()});
+    app.appendChild(h("div",{className:"setup-screen"},h("img",{className:"app-logo",src:"logo.png",alt:""}),h("h1",null,"BetBook"),h("div",{className:"subtitle"},"Le registre officiel des paris entre potes"),h("div",{className:"setup-box"},at,h("label",null,"PRÉNOM"),ni,h("label",null,"CODE PIN"),pin.el,h("div",{className:"pin-hint"},"Code choisi à l'inscription"),err,h("button",{className:"btn-enter",onClick:go},"🔑 Se connecter"))));
+  }else{
+    let ph=null;const ni=h("input",{type:"text",placeholder:"Ex: Aurélien..."});if(invN&&!S.user)ni.value=invN;const pin=pinIn();
+    const pv=h("div",{className:"avatar-preview"});const upv=()=>{pv.innerHTML="";pv.appendChild(ph?h("img",{src:ph}):h("span",{className:"placeholder"},"📷"))};upv();
+    const fi=h("input",{type:"file",accept:"image/*"});fi.addEventListener("change",async e=>{const f=e.target.files[0];if(f){ph=await compressImg(f);upv()}});pv.addEventListener("click",()=>fi.click());
+    const go=()=>{he();const n=ni.value.trim(),c=pin.get();if(!n){se("Entre ton prénom");return}if(c.length!==4){se("4 chiffres requis");return}if(Object.values(S.profiles).find(p=>p.name.toLowerCase()===n.toLowerCase())){se(`"${n}" déjà pris`);return}const id=gid();sp({id,name:n,photo:ph,pinHash:hashPin(c),mood:"",joinedAt:new Date().toISOString()});S.user={id,name:n};sl(UK,S.user);S.loaded=true;render()};
+    app.appendChild(h("div",{className:"setup-screen"},h("img",{className:"app-logo",src:"logo.png",alt:""}),h("h1",null,"BetBook"),h("div",{className:"subtitle"},"Le registre officiel des paris entre potes"),h("div",{className:"setup-box"},at,
+      invN&&invF&&!S.user?h("div",{className:"info"},"⚔️ ",h("strong",null,invF)," t'a lancé un défi !"):null,
+      h("div",{className:"avatar-upload"},pv,fi,h("div",{className:"avatar-hint"},"Appuie pour ta photo")),h("label",null,"PRÉNOM"),ni,h("label",null,"CODE PIN (4 chiffres)"),pin.el,h("div",{className:"pin-hint"},"Pour te reconnecter"),err,h("button",{className:"btn-enter",onClick:go},"✨ Créer mon compte"))));
+  }
+}
+
+// ── Bet Card ──
+function betCard(b){
+  const me=S.user.name,iP=b.player1===me||b.player2===me,ot=b.player1===me?b.player2:b.player1;
+  const isCh=b.status==="challenge",isP=b.status==="pending",isCl=b.status==="claiming",isDec=b.status==="declined",isW=b.status==="won";
+  const needR=isCh&&b.lastProposedBy&&b.lastProposedBy!==me&&iP,waitT=isCh&&b.lastProposedBy===me&&iP;
+  const iCl=isCl&&b.claimedBy===me,tCl=isCl&&b.claimedBy!==me&&iP;
+  const cLos=isCl?(b.claimedWinner===b.player1?b.player2:b.player1):null;
+  const sc=isCh?"challenge":isP?"pending":isCl?"claiming":isDec?"declined":"resolved";
+  const sl2=isCh?(needR?"⚔️ DÉFI REÇU":waitT?"⏳ EN ATTENTE":"⚔️ DÉFI"):isP?"⏳ EN COURS":isCl?"🔔 VALIDATION":isDec?"❌ REFUSÉ":`🏆 ${b.winner}`;
+
+  const c=h("div",{className:`bet-card ${sc}`},
+    h("div",{className:"bet-header"},h("div",{className:"bet-desc"},b.description),h("span",{className:`badge ${sc}`},sl2)),
+    h("div",{className:"bet-meta"},h("span",{className:"bet-tag"},av(b.player1,14,"bet-tag-avatar"),` ${b.player1} vs ${b.player2} `,av(b.player2,14,"bet-tag-avatar")),h("span",{className:"bet-tag"},fd(b.date))),
+    b.stake?h("div",{className:"bet-stake"},"💰 ",h("strong",null,b.stake)):null,
+    b.stakeP1||b.stakeP2?h("div",{className:"bet-stake"},
+      h("div",null,"💰 ",av(b.player1,14,"bet-tag-avatar")," ",h("strong",null,b.stakeP1||"—")),
+      h("div",{style:{marginTop:"3px"}},"💰 ",av(b.player2,14,"bet-tag-avatar")," ",h("strong",null,b.stakeP2||"—"))
+    ):null,
+    b.deadline?h("div",{className:"bet-deadline"},`📅 ${fd(b.deadline)}`):null
+  );
+  if(isCh&&b.counterCount>0)c.appendChild(h("div",{className:"bet-counter-info"},`🔄 Contre-proposition #${b.counterCount} par ${b.lastProposedBy}`));
+  else if(isCh)c.appendChild(h("div",{className:"bet-challenge-info"},`⚔️ Défi de ${b.createdBy}`));
+
+  if(isCl){
+    const bn=h("div",{className:`claim-banner ${iCl?"you-claim":"they-claim"}`});
+    bn.appendChild(av(b.claimedWinner,48,""));
+    if(tCl&&cLos===me){bn.appendChild(h("div",{className:"claim-text"},`${b.claimedBy} prétend avoir gagné !`));bn.appendChild(h("div",{className:"claim-taunt"},`${b.claimedBy} ${b.taunt||rTaunt()}`));bn.appendChild(h("div",{className:"claim-sub"},"Tu confirmes ? 👀"))}
+    else if(tCl){bn.appendChild(h("div",{className:"claim-text"},`${b.claimedBy} dit que ${b.claimedWinner} a gagné`));bn.appendChild(h("div",{className:"claim-sub"},"Confirme ?"))}
+    else if(iCl){bn.appendChild(h("div",{className:"claim-text"},"Victoire revendiquée !"));bn.appendChild(h("div",{className:"claim-sub"},`Attente de ${ot}...`))}
+    else{bn.appendChild(h("div",{className:"claim-text"},`${b.claimedBy} → ${b.claimedWinner} gagne ?`));bn.appendChild(h("div",{className:"claim-sub"},`Attente de ${cLos}`))}
+    c.appendChild(bn);
+  }
+
+  if(isCh&&needR)c.appendChild(h("div",{className:"bet-actions"},h("button",{className:"btn-accept",onClick:()=>acceptB(b.id)},"✅ Accepter"),h("button",{className:"btn-counter",onClick:()=>set({showCounter:b.id})},"🔄 Modifier"),h("button",{className:"btn-decline",onClick:()=>declineB(b.id)},"✕")));
+  else if(isCh&&waitT)c.appendChild(h("div",{className:"bet-actions"},h("button",{className:"btn-waiting"},`Attente de ${ot}...`)));
+  else if(isP&&iP)c.appendChild(h("div",{className:"bet-actions"},h("button",{className:"btn-claim",onClick:()=>{claimV(b.id,me,me);const msg=`🏆 Yo ${ot} ! Je viens de revendiquer la victoire sur notre pari "${b.description}" sur BetBook. Confirme si t'es fair-play 😏 👉 ${location.origin+location.pathname}`;set({showWA:{msg,name:ot}})}},"🏆 J'ai gagné !"),h("button",{className:"btn-claim",onClick:()=>{claimV(b.id,ot,me);const msg=`👏 Yo ${ot} ! Je confirme ta victoire sur "${b.description}" sur BetBook. Va valider 👉 ${location.origin+location.pathname}`;set({showWA:{msg,name:ot}})}},`🤝 ${ot} gagne`)));
+  else if(isCl&&tCl)c.appendChild(h("div",{className:"bet-actions"},h("button",{className:"btn-confirm-win",onClick:()=>confirmV(b.id)},"✅ Confirmer"),h("button",{className:"btn-contest",onClick:()=>contestV(b.id)},"❌ Contester")));
+  else if(isCl&&iCl)c.appendChild(h("div",{className:"bet-actions"},h("button",{className:"btn-waiting"},`Attente de ${ot}...`)));
+
+  // ── Reactions ──
+  const rBar=h("div",{className:"reactions-bar"});
+  const reactions=b.reactions||{};
+  const me2=S.user.name;
+  Object.entries(reactions).forEach(([emoji,users])=>{
+    if(!users||!users.length)return;
+    const iReacted=users.includes(me2);
+    const btn=h("button",{className:`react-btn ${iReacted?"reacted":""}`,onClick:()=>toggleReaction(b.id,emoji)},renderEmoji(emoji,18),h("span",{className:"react-count"},String(users.length)));
+    btn.title=users.join(", ");
+    rBar.appendChild(btn);
+  });
+  // Add reaction button with picker
+  let pickerOpen=false;
+  const picker=h("div",{className:"react-picker",style:{display:"none"}});
+  // Standard emojis
+  QUICK_EMOJIS.forEach(em=>{picker.appendChild(h("button",{onClick:()=>{toggleReaction(b.id,em);picker.style.display="none";pickerOpen=false}},em))});
+  // Custom emojis
+  const ces=getCustomEmojis();
+  if(ces.length){
+    picker.appendChild(h("div",{className:"rp-divider"}));
+    picker.appendChild(h("div",{className:"rp-label"},"Custom"));
+    ces.forEach(ce=>{
+      const img=h("img",{className:"rp-custom",src:ce.img,alt:ce.name,title:ce.name+" (par "+ce.createdBy+")",onClick:()=>{toggleReaction(b.id,ce.id);picker.style.display="none";pickerOpen=false}});
+      picker.appendChild(img);
+    });
+  }
+  // Upload new custom emoji button
+  picker.appendChild(h("div",{className:"rp-divider"}));
+  const upBtn=h("button",{className:"rp-upload",title:"Créer un emoji",onClick:()=>{
+    const fi=document.createElement("input");fi.type="file";fi.accept="image/*";
+    fi.onchange=async e=>{
+      const f=e.target.files[0];if(!f)return;
+      const name=prompt("Nom de l'emoji :");if(!name)return;
+      const img=await compressEmoji(f);
+      addCustomEmoji(name.trim().slice(0,20),img,S.user.name);
+    };fi.click();
+  }},"+");
+  picker.appendChild(upBtn);
+
+  const addBtn=h("button",{className:"react-add",onClick:()=>{pickerOpen=!pickerOpen;picker.style.display=pickerOpen?"flex":"none"}},"+");
+  rBar.appendChild(addBtn);
+  c.appendChild(rBar);
+  c.appendChild(picker);
+
+  // ── Comments ──
+  const comments=b.comments||[];
+  const commSec=h("div",{className:"comments-section"});
+  const commToggle=h("div",{className:"comments-toggle",onClick:()=>{commList.style.display=commList.style.display==="none"?"block":"none";commInputRow.style.display=commInputRow.style.display==="none"?"flex":"none"}},`💬 ${comments.length||""}${comments.length?" commentaire"+(comments.length>1?"s":""):" Commenter"}`);
+  commSec.appendChild(commToggle);
+
+  const commList=h("div",{className:"comments-list",style:{display:comments.length?"block":"none"}});
+  comments.slice(-20).forEach(cm=>{
+    commList.appendChild(h("div",{className:"comment"},
+      av(cm.user,22,""),
+      h("div",{className:"comment-body"},
+        h("div",{className:"comment-header"},h("span",{className:"comment-name"},cm.user),h("span",{className:"comment-date"},fd(cm.date))),
+        h("div",{className:"comment-text"},cm.text)
+      )
+    ));
+  });
+  commSec.appendChild(commList);
+
+  const commInput=h("input",{className:"comment-input",placeholder:"Réagis..."});
+  const commSend=h("button",{className:"comment-send",onClick:()=>{const t=commInput.value;if(t.trim()){addComment(b.id,t);commInput.value=""}}},"➤");
+  commInput.addEventListener("keydown",e=>{if(e.key==="Enter"){const t=commInput.value;if(t.trim()){addComment(b.id,t);commInput.value=""}}});
+  const commInputRow=h("div",{className:"comment-input-row",style:{display:comments.length?"flex":"none"}},commInput,commSend);
+  commSec.appendChild(commInputRow);
+  c.appendChild(commSec);
+
+  return c;
+}
+
+function statCard(l,v,e){return h("div",{className:"stat-card"},h("div",{className:"stat-label"},l),h("div",{className:"stat-value"},`${e} ${v}`))}
+
+function leaderboard(){
+  const st={};ba().forEach(b=>{if(b.status==="won"&&b.winner){const l=b.winner===b.player1?b.player2:b.player1;if(!st[b.winner])st[b.winner]={w:0,l:0};if(!st[l])st[l]={w:0,l:0};st[b.winner].w++;st[l].l++}});
+  const s=Object.entries(st).map(([n,x])=>({n,...x,t:x.w+x.l,r:x.t?x.w/(x.w+x.l):0})).sort((a,b)=>b.w-a.w||a.l-b.l);
+  if(!s.length)return h("div",{className:"empty"},h("div",{className:"empty-icon"},"🏜️"),"Aucun pari résolu");
+  const m=["🥇","🥈","🥉"];
+  return h("div",null,...s.map((p,i)=>h("div",{className:`lb-row ${i===0?"first":""}`,style:{cursor:"pointer"},onClick:()=>set({viewUser:p.n})},h("span",{className:"lb-medal"},m[i]||`#${i+1}`),av(p.n,36,"lb-avatar"),h("div",{className:"lb-info"},h("div",{className:"lb-name"},p.n),h("div",{className:"lb-sub"},`${p.t} paris · ${Math.round(p.r*100)}% WR`)),h("div",{className:"lb-score"},h("span",{className:"lb-w"},`${p.w}W`),h("span",{className:"lb-sep"},"-"),h("span",{className:"lb-l"},`${p.l}L`)),h("div",{className:"lb-ring",style:{background:`conic-gradient(#00DC82 ${p.r*360}deg, rgba(255,60,60,.25) 0deg)`}},`${Math.round(p.r*100)}%`))));
+}
+
+// ── View User Profile (anyone) ──
+function viewUserModal(name){
+  const pr=gp(name),me=S.user.name,isMe=name===me;
+  const st=getStats(name),h2=isMe?null:getH2H(me,name);
+  const ov=h("div",{className:"modal-overlay center",onClick:e=>{if(e.target===ov)set({viewUser:null})}},
+    h("div",{className:"modal"},
+      h("div",{className:"modal-header"},h("h3",{className:"modal-title"},isMe?"👤 Mon Profil":`👤 ${name}`),h("button",{className:"modal-close",onClick:()=>set({viewUser:null})},"✕")),
+      h("div",{className:"up-section"},
+        av(name,80,"up-avatar"),
+        h("div",{className:"up-name"},name),
+        h("div",{className:"up-mood"},pr&&pr.mood?`"${pr.mood}"`:""),
+        pr&&pr.joinedAt?h("div",{className:"up-joined"},`Membre depuis ${fd(pr.joinedAt)}`):null,
+        h("div",{className:"up-stats-grid"},
+          h("div",{className:"up-stat"},h("div",{className:"up-stat-val green"},String(st.w)),h("div",{className:"up-stat-label"},"Victoires")),
+          h("div",{className:"up-stat"},h("div",{className:"up-stat-val red"},String(st.l)),h("div",{className:"up-stat-label"},"Défaites")),
+          h("div",{className:"up-stat"},h("div",{className:"up-stat-val gold"},`${st.wr}%`),h("div",{className:"up-stat-label"},"Winrate"))
+        ),
+        h("div",{className:"up-wr-bar"},h("div",{className:"up-wr-fill",style:{width:`${st.wr}%`}})),
+        h("div",{className:"up-wr-text"},`${st.w}W - ${st.l}L sur ${st.total} paris résolus · ${st.pend} en cours`),
+        h2?h("div",{className:"up-h2h"},`⚔️ Toi vs ${name} : `,h("strong",null,`${h2.mw}W - ${h2.tw}L`),` (${h2.total} paris)`):null
+      ),
+      // Actions
+      isMe?h("div",{className:"profile-actions"},
+        h("button",{className:"btn-profile-action",onClick:()=>{const m=prompt("Ta phrase d'humeur :",pr&&pr.mood||"");if(m!==null&&pr){pr.mood=m.slice(0,60);sp(pr);set({viewUser:null})}}},"💬  Phrase d'humeur"),
+        h("button",{className:"btn-profile-action",onClick:()=>{const fi=document.createElement("input");fi.type="file";fi.accept="image/*";fi.onchange=async e=>{const f=e.target.files[0];if(f&&pr){pr.photo=await compressImg(f);sp(pr);set({viewUser:me})}};fi.click()}},"📷  Changer ma photo"),
+        h("button",{className:"btn-profile-action",onClick:()=>{const nn=prompt("Pseudo :",me);if(nn&&nn.trim()&&nn.trim()!==me){if(Object.values(S.profiles).find(p=>p.name.toLowerCase()===nn.trim().toLowerCase()&&p.id!==S.user.id)){alert("Déjà pris !");return}if(pr){pr.name=nn.trim();sp(pr)}S.user={...S.user,name:nn.trim()};sl(UK,S.user);set({viewUser:null})}}},"✏️  Changer mon pseudo"),
+        h("button",{className:"btn-profile-action",onClick:()=>{const np=prompt("Nouveau PIN (4 chiffres) :");if(np&&/^\d{4}$/.test(np)&&pr){pr.pinHash=hashPin(np);sp(pr);alert("PIN OK !")}else if(np)alert("4 chiffres !")}},"🔒  Changer mon PIN"),
+        h("button",{className:"btn-profile-action",onClick:()=>{
+          const fi=document.createElement("input");fi.type="file";fi.accept="image/*";
+          fi.onchange=async e=>{const f=e.target.files[0];if(!f)return;const nm=prompt("Nom de l'emoji :");if(!nm)return;const img=await compressEmoji(f);addCustomEmoji(nm.trim().slice(0,20),img,S.user.name);set({viewUser:me})};fi.click();
+        }},"🎨  Créer un emoji custom"),
+        (()=>{
+          const myCE=getCustomEmojis().filter(ce=>ce.createdBy===me);
+          if(!myCE.length)return null;
+          const sec=h("div",{className:"emoji-manage"},h("div",{style:{fontSize:"12px",color:"#888",marginBottom:"4px"}},"Mes emojis custom :"));
+          const grid=h("div",{className:"emoji-grid"});
+          myCE.forEach(ce=>{
+            const item=h("div",{className:"emoji-item"},
+              h("img",{src:ce.img,alt:ce.name,title:ce.name}),
+              h("button",{className:"emoji-del",onClick:e=>{e.stopPropagation();deleteCustomEmoji(ce.id);set({viewUser:me})}},"✕")
+            );
+            grid.appendChild(item);
+          });
+          sec.appendChild(grid);return sec;
+        })(),
+        h("button",{className:"btn-profile-action btn-logout",onClick:()=>{localStorage.removeItem(UK);S.user=null;S.loaded=false;set({viewUser:null})}},"🚪  Déconnexion")
+      ):h("div",null,
+        h("button",{className:"btn-challenge-profile",onClick:()=>{set({viewUser:null,showForm:true,challengeTarget:name})}},`⚔️ Défier ${name}`)
+      )
+    )
+  );return ov;
+}
+
+// ── Form Modal ──
+function formModal(){
+  const rn=Object.values(S.profiles).map(p=>p.name).filter(n=>n!==S.user.name);
+  let useC=false;
+  const s2=h("select",{className:"form-select"});
+  rn.forEach(p=>{const o=h("option",{value:p},p);if(p===S.challengeTarget)o.selected=true;s2.appendChild(o)});
+  s2.appendChild(h("option",{value:"__inv"},"+ Inviter quelqu'un..."));
+  const ci=h("input",{className:"form-input",placeholder:"Prénom adversaire...",style:{display:"none"}});
+  s2.addEventListener("change",()=>{if(s2.value==="__inv"){s2.style.display="none";ci.style.display="block";ci.focus();useC=true}});
+  if(!rn.length){s2.style.display="none";ci.style.display="block";useC=true}
+  const desc=h("textarea",{className:"form-textarea",placeholder:"Ex: La France gagne l'Euro 2028..."}),dl=h("input",{className:"form-input",type:"date"});
+  // Stake mode
+  let stakeMode="common";
+  const stakeCommon=h("input",{className:"form-input",placeholder:"Ex: Tournée de bières, 20€..."});
+  const stakeP1=h("input",{className:"form-input",placeholder:"Gage si tu perds..."});
+  const stakeP2=h("input",{className:"form-input",placeholder:"Gage si l'autre perd..."});
+  const perPlayerDiv=h("div",{className:"stake-per-player",style:{display:"none"}},
+    h("div",{className:"stake-player-row"},h("span",{className:"sp-name"},"Toi 👇"),stakeP1),
+    h("div",{className:"stake-player-row"},h("span",{className:"sp-name"},"Adversaire 👇"),stakeP2)
+  );
+  const toggleBtns=[
+    h("button",{className:"active",onClick:()=>{stakeMode="common";toggleBtns[0].className="active";toggleBtns[1].className="";stakeCommon.style.display="block";perPlayerDiv.style.display="none"}},"🎯 Gage commun"),
+    h("button",{onClick:()=>{stakeMode="per";toggleBtns[0].className="";toggleBtns[1].className="active";stakeCommon.style.display="none";perPlayerDiv.style.display="flex"}},"👥 Gage par joueur")
+  ];
+  const stakeToggle=h("div",{className:"stake-toggle"},toggleBtns[0],toggleBtns[1]);
+
+  function go(){const d=desc.value.trim();if(!d)return;const p2=useC?ci.value.trim():s2.value;if(!p2||p2==="__inv")return;
+    const bet={id:gid(),description:d,player1:S.user.name,player2:p2,stake:stakeMode==="common"?stakeCommon.value.trim():"",stakeP1:stakeMode==="per"?stakeP1.value.trim():"",stakeP2:stakeMode==="per"?stakeP2.value.trim():"",deadline:dl.value||null,date:new Date().toISOString(),status:"challenge",winner:null,createdBy:S.user.name,lastProposedBy:S.user.name,counterCount:0};
+    ab(bet);S.challengeTarget=null;
+    const isReg=!!gp(p2);
+    if(!isReg){set({showInvite:{name:p2,desc:d}});return}
+    // Show optional WhatsApp notification
+    const waMsg=`🎲 Yo ${p2} ! Je viens de te lancer un défi sur BetBook :\n\n"${d}"\n\nVa voir ça 👉 ${location.origin+location.pathname}`;
+    set({showWA:{msg:waMsg,name:p2}});
+  }
+  const ov=h("div",{className:"modal-overlay",onClick:e=>{if(e.target===ov){S.challengeTarget=null;set({showForm:false})}}},
+    h("div",{className:"modal"},
+      h("div",{className:"modal-header"},h("h3",{className:"modal-title"},"⚔️ Lancer un Défi"),h("button",{className:"modal-close",onClick:()=>{S.challengeTarget=null;set({showForm:false})}},"✕")),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"TU DÉFIES"),s2,ci),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"DESCRIPTION DU PARI"),desc),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"ENJEU / GAGE"),stakeToggle,stakeCommon,perPlayerDiv),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"DATE LIMITE (optionnel)"),dl),
+      h("button",{className:"btn-submit purple",onClick:go},"⚔️ Envoyer le Défi")
+    )
+  );return ov;
+}
+
+function inviteModal(){
+  const inv=S.showInvite;if(!inv)return null;const msg=invMsg(inv.name,S.user.name,inv.desc);
+  const ov=h("div",{className:"modal-overlay center",onClick:e=>{if(e.target===ov)set({showInvite:null})}},
+    h("div",{className:"modal"},
+      h("div",{className:"modal-header"},h("h3",{className:"modal-title"},"📲 Invite !"),h("button",{className:"modal-close",onClick:()=>set({showInvite:null})},"✕")),
+      h("div",{style:{textAlign:"center",marginBottom:"16px"}},av(inv.name,56,""),h("div",{style:{fontSize:"15px",fontWeight:"700",color:"#f0f0f0",marginTop:"8px"}},inv.name),h("div",{style:{fontSize:"12px",color:"#888",marginTop:"4px"}},"Pas encore inscrit")),
+      h("div",{style:{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:"12px",padding:"14px",fontSize:"13px",color:"#ccc",lineHeight:"1.5",marginBottom:"16px",whiteSpace:"pre-wrap"}},msg),
+      h("button",{className:"btn-wa",onClick:()=>{openWA(msg);set({showInvite:null})}},"📱 Envoyer via WhatsApp"),
+      h("button",{className:"btn-submit",onClick:async()=>{await shareC(msg);set({showInvite:null})},style:{marginTop:"8px"}},"📋 Copier le message"),
+      h("div",{style:{fontSize:"11px",color:"#555",textAlign:"center",marginTop:"10px"}},"Dès que "+inv.name+" s'inscrit, le défi apparaîtra !")
+    )
+  );return ov;
+}
+
+// ── WhatsApp notification modal (optional, after actions) ──
+function waModal(){
+  const wa=S.showWA;if(!wa)return null;
+  const ov=h("div",{className:"modal-overlay center",onClick:e=>{if(e.target===ov)set({showWA:null})}},
+    h("div",{className:"modal",style:{textAlign:"center"}},
+      h("div",{style:{fontSize:"40px",marginBottom:"12px"}},"✅"),
+      h("div",{style:{fontSize:"16px",fontWeight:"800",color:"#f0f0f0",marginBottom:"4px"}},"Défi envoyé !"),
+      h("div",{style:{fontSize:"13px",color:"#888",marginBottom:"20px"}},`Prévenir ${wa.name} sur WhatsApp ?`),
+      h("button",{className:"btn-wa",onClick:()=>{openWA(wa.msg);set({showWA:null})}},"📱 Ouvrir WhatsApp"),
+      h("button",{className:"btn-profile-action",onClick:()=>set({showWA:null}),style:{marginTop:"8px",justifyContent:"center"}},"Pas maintenant")
+    )
+  );return ov;
+}
+
+function counterModal(bid){
+  const b=S.bets[bid];if(!b)return null;
+  const desc=h("textarea",{className:"form-textarea"});desc.value=b.description;
+  const dl=h("input",{className:"form-input",type:"date"});dl.value=b.deadline||"";
+  // Determine current stake mode
+  let stakeMode=(b.stakeP1||b.stakeP2)?"per":"common";
+  const stakeCommon=h("input",{className:"form-input"});stakeCommon.value=b.stake||"";
+  const sp1=h("input",{className:"form-input",placeholder:"Gage J1..."});sp1.value=b.stakeP1||"";
+  const sp2=h("input",{className:"form-input",placeholder:"Gage J2..."});sp2.value=b.stakeP2||"";
+  const ppDiv=h("div",{className:"stake-per-player",style:{display:stakeMode==="per"?"flex":"none"}},
+    h("div",{className:"stake-player-row"},h("span",{className:"sp-name"},b.player1),sp1),
+    h("div",{className:"stake-player-row"},h("span",{className:"sp-name"},b.player2),sp2)
+  );
+  stakeCommon.style.display=stakeMode==="common"?"block":"none";
+  const tb=[
+    h("button",{className:stakeMode==="common"?"active":"",onClick:()=>{stakeMode="common";tb[0].className="active";tb[1].className="";stakeCommon.style.display="block";ppDiv.style.display="none"}},"🎯 Commun"),
+    h("button",{className:stakeMode==="per"?"active":"",onClick:()=>{stakeMode="per";tb[0].className="";tb[1].className="active";stakeCommon.style.display="none";ppDiv.style.display="flex"}},"👥 Par joueur")
+  ];
+  const ov=h("div",{className:"modal-overlay",onClick:e=>{if(e.target===ov)set({showCounter:null})}},
+    h("div",{className:"modal"},
+      h("div",{className:"modal-header"},h("h3",{className:"modal-title"},"🔄 Contre-proposition"),h("button",{className:"modal-close",onClick:()=>set({showCounter:null})},"✕")),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"DESCRIPTION"),desc),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"ENJEU / GAGE"),h("div",{className:"stake-toggle"},tb[0],tb[1]),stakeCommon,ppDiv),
+      h("div",{className:"form-group"},h("label",{className:"form-label"},"DATE LIMITE"),dl),
+      h("button",{className:"btn-submit",onClick:()=>{const d=desc.value.trim();if(!d)return;ub(bid,{description:d,stake:stakeMode==="common"?stakeCommon.value.trim():"",stakeP1:stakeMode==="per"?sp1.value.trim():"",stakeP2:stakeMode==="per"?sp2.value.trim():"",deadline:dl.value||null,lastProposedBy:S.user.name,counterCount:(b.counterCount||0)+1});const ot=b.player1===S.user.name?b.player2:b.player1;const msg=`🔄 Yo ${ot} ! J'ai modifié notre pari "${d}" sur BetBook. Va voir ma contre-proposition 👉 ${location.origin+location.pathname}`;set({showCounter:null,showWA:{msg,name:ot}})}},"🔄 Envoyer")
+    )
+  );return ov;
+}
+
+function confirmModal(id){return h("div",{className:"confirm-overlay",onClick:e=>{if(e.target===e.currentTarget)set({confirmDelete:null})}},h("div",{className:"confirm-box"},h("p",null,"Supprimer définitivement ?"),h("div",{className:"confirm-actions"},h("button",{className:"btn-cancel",onClick:()=>set({confirmDelete:null})},"Annuler"),h("button",{className:"btn-confirm-delete",onClick:()=>db2(id)},"Supprimer"))))}
+
+// ── Main Render ──
+function render(){
+  document.querySelectorAll(".modal-overlay,.confirm-overlay").forEach(e=>e.remove());
+  if(!S.user||!S.loaded){if(fbOk&&!S.fbReady)return;renderAuth();return}
+  const app=document.getElementById("app");app.innerHTML="";
+  const me=S.user.name,bs=ba();
+  const challenges=bs.filter(b=>b.status==="challenge"&&(b.player1===me||b.player2===me));
+  const myPC=challenges.filter(b=>b.lastProposedBy!==me);
+  const active=bs.filter(b=>b.status==="pending"||b.status==="claiming");
+  const history=bs.filter(b=>b.status==="won"||b.status==="declined");
+  const myClaims=active.filter(b=>b.status==="claiming"&&b.claimedBy!==me&&(b.player1===me||b.player2===me));
+  let display;if(S.tab==="active")display=active;else if(S.tab==="challenges")display=challenges;else if(S.tab==="history")display=history;else display=[];
+  const pl=[...new Set(bs.flatMap(b=>[b.player1,b.player2]))];
+  const filt=S.filter==="all"?display:display.filter(b=>b.player1===S.filter||b.player2===S.filter);
+
+  // Header
+  app.appendChild(h("div",{className:"header"},h("img",{className:"app-logo",src:"logo.png",alt:""}),h("div",{className:"header-text"},h("h1",null,"BetBook",h("span",{className:`sync-dot ${S.online?"online":"offline"}`})),h("p",null,S.online?"Temps réel":"Local")),h("div",{className:"header-profile",onClick:()=>set({viewUser:me})},h("span",{className:"header-name"},me),av(me,32,""))));
+
+  // ── Player Cards ──
+  const allProfiles=Object.values(S.profiles);
+  if(allProfiles.length>0){
+    const ps=h("div",{className:"players-section"});
+    ps.appendChild(h("div",{className:"players-title"},"Joueurs"));
+    const row=h("div",{className:"players-row"});
+    allProfiles.forEach(p=>{
+      const isMe=p.name===me;const st=getStats(p.name);
+      const card=h("div",{className:`player-card ${isMe?"is-me":""}`,onClick:()=>set({viewUser:p.name})},
+        av(p.name,48,"pc-avatar"),
+        h("div",{className:"pc-name"},p.name),
+        p.mood?h("div",{className:"pc-mood"},p.mood):null,
+        st.total>0?h("div",{className:"pc-wr"},`${st.wr}% WR`):null
+      );
+      row.appendChild(card);
+    });
+    ps.appendChild(row);app.appendChild(ps);
+  }
+
+  // Stats
+  app.appendChild(h("div",{className:"stats"},statCard("Défis",myPC.length,"⚔️"),statCard("Actifs",active.length,"⏳"),statCard("Résolus",history.filter(b=>b.status==="won").length,"🏅"),statCard("Total",bs.filter(b=>b.status!=="declined").length,"🔥")));
+
+  // Tabs
+  const tabs=h("div",{className:"tabs"});
+  [["active","⏳ En cours",myClaims.length],["challenges","⚔️ Défis",myPC.length],["history","🏆 Historique",0],["leaderboard","🔥 Classement",0]].forEach(([k,l,badge])=>{const btn=h("button",{className:`tab ${S.tab===k?"active":""}`,onClick:()=>set({tab:k,filter:"all"})},l);if(badge>0)btn.appendChild(h("span",{className:"tab-badge"},String(badge)));tabs.appendChild(btn)});
+  app.appendChild(tabs);
+
+  // Filters
+  if(S.tab!=="leaderboard"&&pl.length>0){const f=h("div",{className:"filters"});f.appendChild(h("button",{className:`chip ${S.filter==="all"?"active":""}`,onClick:()=>set({filter:"all"})},"Tous"));pl.forEach(p=>f.appendChild(h("button",{className:`chip ${S.filter===p?"active":""}`,onClick:()=>set({filter:p})},av(p,16,"chip-avatar"),p)));app.appendChild(f)}
+
+  // Content
+  const cnt=h("div",{className:"bets-list"});
+  if(S.tab==="leaderboard")cnt.appendChild(leaderboard());
+  else if(!filt.length){const m={challenges:["⚔️","Aucun défi","Lance un défi !"],active:["🎯","Aucun pari en cours",""],history:["📜","Pas d'historique",""]};const x=m[S.tab]||m.active;cnt.appendChild(h("div",{className:"empty"},h("div",{className:"empty-icon"},x[0]),x[1],x[2]?h("div",{className:"empty-hint"},x[2]):null))}
+  else filt.forEach(b=>cnt.appendChild(betCard(b)));
+  app.appendChild(cnt);
+
+  app.appendChild(h("button",{className:"fab",onClick:()=>set({showForm:true})},"+"));
+
+  if(S.showForm)document.body.appendChild(formModal());
+  if(S.viewUser)document.body.appendChild(viewUserModal(S.viewUser));
+  if(S.showCounter)document.body.appendChild(counterModal(S.showCounter));
+  if(S.showInvite)document.body.appendChild(inviteModal());
+  if(S.showWA)document.body.appendChild(waModal());
+  if(S.confirmDelete)document.body.appendChild(confirmModal(S.confirmDelete));
+}
+
+// ── Init ──
+(function(){
+  initFB();
+  if(fbOk){
+    profilesRef.once("value",snap=>{
+      S.profiles=snap.val()||{};S.fbReady=true;
+      profilesRef.on("value",snap=>{S.profiles=snap.val()||{};if(S.loaded&&!hasM())render()});
+      betsRef.on("value",snap=>{const nb=snap.val()||{};checkNewChallenges(S.bets,nb);S.bets=nb;S.online=true;if(S.loaded&&!hasM())render()});
+      emojisRef.on("value",snap=>{S.customEmojis=snap.val()||{};if(S.loaded&&!hasM())render()});
+      db.ref(".info/connected").on("value",snap=>{S.online=!!snap.val();if(S.loaded&&!hasM())render()});
+      if(S.user)S.loaded=true;render();
+    });
+  }else{S.bets=ll("bb_b",{});S.profiles=ll("bb_p",{});S.customEmojis=ll("bb_ce",{});S.fbReady=true;if(S.user)S.loaded=true;render()}
+})();
+</script>
+</body>
+</html>
